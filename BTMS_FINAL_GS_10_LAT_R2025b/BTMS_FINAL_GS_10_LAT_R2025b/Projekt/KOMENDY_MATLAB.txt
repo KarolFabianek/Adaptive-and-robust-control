@@ -1,0 +1,30 @@
+MATLAB R2025b - instrukcja BTMS
+
+1. Rozpakuj caly ZIP do nowego katalogu (NIE nadpisuj starej wersji).
+2. Otworz MATLAB -> Command Window.
+3. Wklej:
+[f,p] = uigetfile('START_BTMS.m','Wybierz START_BTMS.m z Projekt');
+if ~isequal(f,0), run(fullfile(p,f)); end
+
+4. Po uruchomieniu w menu: 1 (status), 6 (testy), 8 (calosc), 22 (cel80), 18 (Simulink), 19 (NASA), 0 (wyjscie).
+5. Po wyjsciu z menu mozna wpisac:
+BTMS_MENU('status')
+BTMS_MENU('calosc')
+BTMS_MENU('cel80')
+BTMS_MENU('porownanie')
+BTMS_MENU('nastawy')
+BTMS_MENU('przebieg')
+BTMS_MENU('energia')
+BTMS_MENU('soh')
+BTMS_MENU('odpornosc')
+BTMS_MENU('stabilnosc')
+BTMS_MENU('zgodnosc')
+BTMS_MENU('wykresy')
+BTMS_MENU('simulink')
+BTMS_MENU('nasa')
+
+ZRODLA: 24 scenariusze MATLAB vs Python juz zweryfikowane na komputerze uzytkownika.
+Simulink Level-2 oraz NASA w MATLAB wymagaja teraz lokalnego testu.
+W Matlab R2025b program nie korzysta z bloku Interpreted MATLAB Fcn.
+Parametry modelu i skroty: README.md, Dokumentacja/RAPORT_TECHNICZNY.md.
+UWAGA: `calosc` nadpisuje *_matlab.csv i matlab_*.png; `cel80` plik goal80_feasibility_matlab.csv.

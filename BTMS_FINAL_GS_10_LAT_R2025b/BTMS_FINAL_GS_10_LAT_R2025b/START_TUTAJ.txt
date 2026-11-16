@@ -1,0 +1,10 @@
+BTMS | Fabianek, Fortuna | MATLAB R2025b + NASA B0005
+=================================================
+Prezentacja/: oryginalny szablon wykładowy, 24 slajdy.
+Projekt/: pelny kod MATLAB, Python, oryginalne NASA B0005.mat, wyniki, instrukcja.
+Pierwsze dwie komendy w MATLAB:
+[f,p] = uigetfile('START_BTMS.m','Wybierz START_BTMS.m w folderze Projekt');
+if ~isequal(f,0), run(fullfile(p,f)); end
+W menu: 8 = pelne obliczenia; 18 = Simulink R2025b; 19 = NASA B0005.
+Nie mieszaj plikow z poprzednimi ZIP-ami.
+Weryfikacja w tym srodowisku: Python i NASA tak; lokalny MATLAB/Simulink jeszcze nie.

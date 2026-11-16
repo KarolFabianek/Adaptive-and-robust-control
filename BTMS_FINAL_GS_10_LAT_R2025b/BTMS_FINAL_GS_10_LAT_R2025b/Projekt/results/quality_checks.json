@@ -1,0 +1,17 @@
+{
+  "cases": 24,
+  "results_complete": true,
+  "SOH_finite": true,
+  "SOC_terminal_ok": true,
+  "energy_balance_residual_max_J": 1.0913936421275139e-11,
+  "temperature_limit_safes_35": {
+    "PI_SAFE": true,
+    "GS_SAFE": true,
+    "GS_LIFE": true
+  },
+  "n_robustness": 162,
+  "PI_GS_35_RMSE": {
+    "PI": 14.016974996817527,
+    "GS": 14.187109685209416
+  }
+}

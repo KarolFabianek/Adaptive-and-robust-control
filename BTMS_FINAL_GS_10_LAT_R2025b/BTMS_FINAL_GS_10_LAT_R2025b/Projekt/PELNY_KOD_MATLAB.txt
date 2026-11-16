@@ -1,0 +1,906 @@
+
+================================================================================
+START_BTMS.m
+================================================================================
+% START_BTMS: select this file via uigetfile from the user chat.
+% No administrator, no saving of MATLAB global path, no edits to Windows PATH.
+root=fileparts(mfilename('fullpath'));
+if ~isfolder(fullfile(root,'matlab'))
+    error('Unzip all files first; directory Projekt/matlab is missing.');
+end
+% Remove older BTMS folders from *this* MATLAB session to prevent old code shadowing.
+parts=strsplit(path,pathsep);
+for i=1:numel(parts)
+    old=parts{i};
+    if isempty(old)||strcmpi(old,root)||strcmpi(old,fullfile(root,'matlab'))
+        continue;
+    end
+    if isfile(fullfile(old,'BTMS_MENU.m')) || isfile(fullfile(old,'btms_cfg.m'))
+        rmpath(old);
+        fprintf('Usunieto z sesji stara sciezke BTMS: %s\n',old);
+    end
+end
+cd(root);
+addpath(root,'-begin');addpath(fullfile(root,'matlab'),'-begin');
+clear BTMS_MENU btms_make_simulink btms_sfcn_life80 btms_goal80;
+rehash;
+fprintf('\nBTMS FINAL R2025b | uruchomione z: %s\n',root);
+fprintf('Biezace BTMS_MENU.m: %s\n',which('BTMS_MENU'));
+fprintf('Nowy model Simulink: Level-2 MATLAB S-Function.\n');
+fprintf('Najpierw 8: calosc, 22: cel80, 18: simulink, 19: nasa.\n');
+BTMS_MENU();
+
+
+================================================================================
+BTMS_MENU.m
+================================================================================
+function BTMS_MENU(cmd)
+% BTMS_MENU() -- menu interaktywne
+% BTMS_MENU('calosc') -- testy, 24 symulacje, 162 testy niepewnosci,
+%                        porownanie Python, wykresy. Bez Simulink i NASA.
+root=fileparts(mfilename('fullpath'));
+cd(root); addpath(root); addpath(fullfile(root,'matlab'));
+if nargin==0 || isempty(cmd)
+    while true
+        pomoc();
+        wybor=strtrim(lower(input('\nBTMS | numer lub komenda (0 = koniec): ','s')));
+        if any(strcmp(wybor,{'0','koniec','exit'}))
+            fprintf('Wyjscie. Aby wrocic wpisz BTMS_MENU()\n'); return;
+        end
+        try
+            wykonaj(wybor,root);
+        catch ME
+            fprintf(2,'BLAD BTMS: %s\n',ME.message);
+            for k=1:numel(ME.stack)
+                fprintf(2,'  -> %s, linia %d\n',ME.stack(k).name,ME.stack(k).line);
+            end
+            fprintf('Kontrola: BTMS_MENU(''status''); gotowe dane: BTMS_MENU(''gotowe'').\n');
+        end
+    end
+else
+    % Try-catch rowniez przy bezposrednim wywolaniu BTMS_MENU('...'):
+    try
+        wykonaj(strtrim(lower(char(cmd))),root);
+    catch ME
+        fprintf(2,'BLAD BTMS: %s\n',ME.message);
+        for k=1:numel(ME.stack)
+            fprintf(2,'  -> %s, linia %d\n',ME.stack(k).name,ME.stack(k).line);
+        end
+        fprintf('Popraw blad zanim uznasz, ze wyniki MATLAB sa gotowe.\n');
+    end
+end
+end
+
+function pomoc()
+fprintf('\n===================== BTMS / MATLAB =====================\n');
+fprintf(' 1 status        Dostepnosc plikow, MATLAB i Simulink\n');
+fprintf(' 2 pomoc         Spis funkcji\n');
+fprintf(' 3 gotowe        24 zapisane wyniki REFERENCYJNE Python\n');
+fprintf(' 4 porownaj_ref  PI vs GS z danych referencyjnych\n');
+fprintf(' 5 soh_ref       SOH z danych referencyjnych\n');
+fprintf(' 6 testy         Testy modelu MATLAB (24 sesje)\n');
+fprintf(' 7 obliczenia    24 scenariusze + SOH + 162 niepewnosci MATLAB\n');
+fprintf(' 8 calosc        Testy + obliczenia + zgodnosc + wykresy\n');
+fprintf(' 9 wyniki        Tabela wynikow MATLAB\n');
+fprintf('10 porownanie    PI / GS / SAFE / LIFE przy 35 C, MATLAB\n');
+fprintf('11 nastawy       Kp i Ki wzgledem SOC\n');
+fprintf('12 przebieg      15 probek sygnalow GS_SAFE 35 C\n');
+fprintf('13 energia       Cieplo i pomocnicza energia chlodzenia\n');
+fprintf('14 soh           Prognoza modelowa SOH na 10 lat\n');
+fprintf('15 odpornosc     162 testy niepewnosci parametrow\n');
+fprintf('16 stabilnosc    Przyblizone lokalne Jacobiany\n');
+fprintf('17 wykresy       Wykresy z danych MATLAB\n');
+fprintf('18 simulink      Simulink R2025b: generacja + symulacja + kontrola\n');
+fprintf('19 nasa          NASA B0005: rzeczywiste dane (w paczce)\n');
+fprintf('20 zgodnosc      Porownanie wynikow MATLAB z Python\n');
+fprintf('21 raport        Pokaz katalogi wygenerowanych plikow\n');
+fprintf('22 cel80         10 lat: analiza warunkow spelnienia SOH>=80%%\n');
+fprintf(' 0 koniec\n');
+fprintf('Wpisanie 7/8 ponownie tworzy pliki *_matlab.csv. Nie rusza wynikow Python.\n');
+end
+
+function wykonaj(cmd,root)
+if any(strcmp(cmd,{'1','status'}))
+    fprintf('\n--- DIAGNOSTYKA PROJEKTU ---\n');
+    fprintf('Katalog: %s\n',root);
+    fprintf('MATLAB: %s\n',version);
+    files={'START_BTMS.m','BTMS_MENU.m','matlab/btms_cfg.m',...
+       'matlab/main_btms.m','matlab/quality_tests.m','matlab/btms_compare_reference.m',...
+       'results/sessions_summary.csv','results/sessions_summary_matlab.csv'};
+    for i=1:numel(files)
+        fprintf('  %-42s %s\n',files{i},yesno(isfile(fullfile(root,files{i}))));
+    end
+    fprintf('Simulink - funkcja new_system: %s\n',yesno(~isempty(which('new_system'))));
+    fprintf('Simulink - licencja testowa: %d\n',license('test','Simulink'));
+    fprintf('NASA B0005.mat: %s (dane do analizy dostarczone)\n',yesno(isfile(fullfile(root,'nasa_data','B0005.mat'))));
+elseif any(strcmp(cmd,{'2','pomoc','help'}))
+    pomoc();
+elseif any(strcmp(cmd,{'3','gotowe'}))
+    fprintf('REFERENCJA PYTHON: to nie sa wyniki obecnej sesji MATLAB.\n');
+    T=data(root,'sessions_summary.csv');
+    disp(T(:,{'strategy','ambient_C','time_min','Tmax_C','energy_aux_kWh','status'}));
+elseif any(strcmp(cmd,{'4','porownaj_ref'}))
+    fprintf('REFERENCJA PYTHON | 35 C\n');porownaj(data(root,'sessions_summary.csv'));
+elseif any(strcmp(cmd,{'5','soh_ref'}))
+    fprintf('REFERENCJA PYTHON | SOH to PROGNOZA MODELOWA, nie NASA\n');
+    disp(data(root,'life_summary.csv'));
+elseif any(strcmp(cmd,{'6','testy'}))
+    quality_tests();
+elseif any(strcmp(cmd,{'7','obliczenia'}))
+    fprintf('Przeliczam model; nadpisuje tylko wygenerowane wyniki *_matlab.csv w tym Projekcie.\n');
+    main_btms();
+elseif any(strcmp(cmd,{'8','calosc','wszystko'}))
+    fprintf('1/5 Testy MATLAB...\n');quality_tests();
+    fprintf('2/5 Symulacje MATLAB...\n');main_btms();
+    fprintf('3/5 Kontrola MATLAB vs Python...\n');btms_compare_reference();
+    fprintf('4/5 Wykresy MATLAB...\n');WYKRESY_MATLAB();
+    fprintf('5/5 Wyniki MATLAB...\n');
+    T=data(root,'sessions_summary_matlab.csv');
+    disp(T(:,{'strategy','ambient_C','time_min','Tmax_C','energy_aux_kWh','status'}));
+    fprintf('KONIEC. Zapisano nowe CSV i PNG. Simulink i NASA sa opcjonalne.\n');
+elseif any(strcmp(cmd,{'9','wyniki'}))
+    T=data(root,'sessions_summary_matlab.csv');
+    disp(T(:,{'strategy','ambient_C','time_min','Tmax_C','energy_aux_kWh','status'}));
+elseif any(strcmp(cmd,{'10','porownanie'}))
+    porownaj(data(root,'sessions_summary_matlab.csv'));
+elseif any(strcmp(cmd,{'11','nastawy'}))
+    c=btms_cfg(); soc=[.20;.35;.50;.65;.80];
+    kp1=zeros(size(soc));ki1=kp1;kp2=kp1;ki2=kp1;
+    for i=1:numel(soc)
+       [kp1(i),ki1(i)]=btms_gains(c,soc(i),'PI');
+       [kp2(i),ki2(i)]=btms_gains(c,soc(i),'GS');
+    end
+    disp(table(soc,kp1,ki1,kp2,ki2,'VariableNames',{'SOC','Kp_PI','Ki_PI','Kp_GS','Ki_GS'}));
+elseif any(strcmp(cmd,{'12','przebieg'}))
+    T=data(root,'session_35C_GS_SAFE_matlab.csv');
+    idx=unique(round(linspace(1,height(T),min(15,height(T)))));
+    disp(T(idx,{'time_min','Tc_C','Ts_C','SOC','I_A','u','Qgen_W','Qcool_W'}));
+elseif any(strcmp(cmd,{'13','energia'}))
+    T=data(root,'sessions_summary_matlab.csv');
+    disp(T(T.ambient_C==35,{'strategy','energy_heat_kWh','energy_aux_kWh','time_min'}));
+elseif any(strcmp(cmd,{'14','soh'}))
+    fprintf('SOH po 10 latach: wariant scenariuszowy, brak walidacji NASA.\n');
+    disp(data(root,'life_summary_matlab.csv'));
+elseif any(strcmp(cmd,{'15','odpornosc'}))
+    T=data(root,'robustness_35C_matlab.csv');
+    fprintf('Liczba przypadkow: %d; najwieksze Tmax = %.2f C; przypadki >= 40 C: %d\n',...
+       height(T),max(T.Tmax_C),sum(T.Tmax_C>=40));
+    disp(T(1:min(10,height(T)),:));
+    fprintf('To test wrazliwosci, a nie formalna gwarancja odpornosci.\n');
+elseif any(strcmp(cmd,{'16','stabilnosc'}))
+    disp(data(root,'local_frozen_jacobian_matlab.csv'));
+    fprintf('Lokalne przyblizenie w zamrozonych punktach; bez dowodu globalnego.\n');
+elseif any(strcmp(cmd,{'17','wykresy'}))
+    if ~isfile(fullfile(root,'results','session_35C_PI_matlab.csv'))
+        error('Najpierw BTMS_MENU(''obliczenia'') lub BTMS_MENU(''calosc'').');
+    end
+    WYKRESY_MATLAB();
+elseif any(strcmp(cmd,{'18','simulink'}))
+    if isempty(which('new_system')) || license('test','Simulink')==0
+        fprintf('SIMULINK niedostepny lub brak licencji. To NIE jest blad glownego projektu.\n');
+        fprintf('Do obliczen wpisz BTMS_MENU(''calosc'').\n');
+    else
+        try
+            run(fullfile(root,'URUCHOM_SIMULINK.m'));
+        catch ME
+            fprintf(2,'SIMULINK R2025b: blad demonstratora: %s\n',ME.message);
+            for ii=1:numel(ME.stack), fprintf(2,'  %s:%d\n',ME.stack(ii).name,ME.stack(ii).line); end
+            fprintf(2,'Sprawdz: matlab/btms_make_simulink.m. Nie zastępuj wyniku pomiarem.\n');
+        end
+    end
+elseif any(strcmp(cmd,{'19','nasa'}))
+    if ~isfile(fullfile(root,'nasa_data','B0005.mat'))
+        fprintf('NASA: brak prawdziwego pliku Projekt/nasa_data/B0005.mat. To opcja.\n');
+    else
+        try
+            run(fullfile(root,'URUCHOM_NASA_MATLAB.m'));
+        catch ME
+            fprintf(2,'Opcjonalna analiza NASA nie uruchomila sie: %s\n',ME.message);
+        end
+    end
+elseif any(strcmp(cmd,{'20','zgodnosc'}))
+    btms_compare_reference();
+elseif any(strcmp(cmd,{'22','cel80','80','goal80'}))
+    btms_goal80();
+elseif any(strcmp(cmd,{'21','raport'}))
+    fprintf('Wyniki MATLAB: %s\n',fullfile(root,'results'));
+    fprintf('Wykresy MATLAB: %s\n',fullfile(root,'figures'));
+    fprintf('Dokumentacja: %s\n',fullfile(root,'Dokumentacja'));
+    fprintf('Aby otworzyc katalog wynikow: winopen(fullfile(pwd,''results''))  [Windows]\n');
+else
+    fprintf('Nieznana komenda: %s\n',cmd);pomoc();
+end
+end
+
+function T=data(root,name)
+file=fullfile(root,'results',name);
+if ~isfile(file)
+    error('Brak %s. Dla MATLAB: BTMS_MENU(''calosc''). Dla danych gotowych: BTMS_MENU(''gotowe'').',name);
+end
+T=readtable(file);
+end
+function porownaj(T)
+ix=T.ambient_C==35 & ismember(string(T.strategy),{'PI','GS','PI_SAFE','GS_SAFE','GS_LIFE'});
+disp(T(ix,{'strategy','time_min','Tmax_C','energy_aux_kWh','RMSE_error_K','sat_fraction'}));
+end
+function v=yesno(b)
+if b,v='TAK';else,v='NIE';end
+end
+
+
+================================================================================
+matlab/btms_cfg.m
+================================================================================
+function c = btms_cfg()
+% Jawne PARAMETRY PROJEKTOWE, nie pomiary fabryczne ani kalibracja NASA.
+c.dt=5; c.Tmax=7200;
+c.ns=96; c.np=50; c.U_cell=3.6; c.Ah_cell=3.5; c.R_cell=0.028;
+c.mass_cell=0.048; c.cp=900; c.Cfrac=0.76;
+c.Gcs=165; c.Gamb=25; c.Gcool=470; c.Tmax_cool=6500;
+c.Tcool=18; c.COP=2.6; c.pump_max=400;
+c.soc0=.25; c.soc_target=.80; c.taper_soc=.70;
+c.I_max=300; c.I_taper=130;
+c.Tref=30; c.Tlim=40; c.thermal_start=36.5; c.thermal_full=39.5; c.I_min=110;
+c.ff_gain=.70; c.Kp_const=.0725; c.Ki_const=47.5e-6;
+c.R_scale=1; c.Gcs_scale=1; c.Gcool_scale=1;
+c.k_cal=.025; c.k_cyc=5e-5;
+c.socpark_regular=.78; c.socpark_life=.50;
+c.days_per_year=300; c.EFC_per_session=.55;
+c.Qah=c.np*c.Ah_cell;
+c.Rn=c.ns*c.R_cell/c.np;
+c.Ctotal=c.ns*c.np*c.mass_cell*c.cp;
+c.Cc=c.Cfrac*c.Ctotal; c.Cs=(1-c.Cfrac)*c.Ctotal;
+c.En_kWh=c.ns*c.U_cell*c.Qah/1000;
+end
+
+
+================================================================================
+matlab/btms_compare_reference.m
+================================================================================
+function T = btms_compare_reference()
+% Kontrola zgodnosci implementacji MATLAB z referencja Python.
+% NIE jest to walidacja pomiarowa; obie implementacje uzywaja tego samego modelu.
+root=fileparts(fileparts(mfilename('fullpath')));
+refFile=fullfile(root,'results','sessions_summary.csv');
+matFile=fullfile(root,'results','sessions_summary_matlab.csv');
+if ~isfile(refFile), error('Brak danych referencyjnych results/sessions_summary.csv'); end
+if ~isfile(matFile), error('Najpierw uruchom BTMS_MENU(''obliczenia''). Brak sesji MATLAB.'); end
+R=readtable(refFile); M=readtable(matFile);
+if height(R)~=24 || height(M)~=24
+    error('Oczekiwano 24 wierszy w obu zestawach danych.');
+end
+rows=cell(24,6);j=0;
+for i=1:height(M)
+    ix=strcmp(string(R.strategy),string(M.strategy(i))) & abs(R.ambient_C-M.ambient_C(i))<1e-9;
+    if sum(ix)~=1, error('Brak jednoznacznego przypadku: %s / %g C',string(M.strategy(i)),M.ambient_C(i)); end
+    j=j+1;
+    rows(j,:)={string(M.strategy(i)),M.ambient_C(i),...
+        abs(M.time_min(i)-R.time_min(ix)),...
+        abs(M.Tmax_C(i)-R.Tmax_C(ix)),...
+        abs(M.energy_aux_kWh(i)-R.energy_aux_kWh(ix)),...
+        abs(M.SOC_end(i)-R.SOC_end(ix))};
+end
+T=cell2table(rows,'VariableNames',{'strategy','ambient_C','dt_min','dTmax_C','dEaux_kWh','dSOC'});
+fprintf('ZGODNOSC Z REFERENCJA PYTHON: max |dt|=%.8g min; |dTc|=%.8g K; |dE|=%.8g kWh; |dSOC|=%.8g\n',...
+    max(T.dt_min),max(T.dTmax_C),max(T.dEaux_kWh),max(T.dSOC));
+% Tolerancja obejmuje roznice zaokraglen implementacji, a nie blad pomiarowy.
+assert(max(T.dt_min)<0.1 && max(T.dTmax_C)<0.05 && max(T.dEaux_kWh)<0.003 && max(T.dSOC)<1e-7,...
+    'Roznica MATLAB / Python jest wieksza niz spodziewana. Sprawdz cfg i algorytm.');
+writetable(T,fullfile(root,'results','matlab_python_comparison.csv'));
+fprintf('OK: zapisano results/matlab_python_comparison.csv\n');
+end
+
+
+================================================================================
+matlab/btms_gains.m
+================================================================================
+function [Kp,Ki] = btms_gains(c,soc,strategy)
+% Harmonogram SOC jawny i liniowo interpolowany.
+if any(strcmp(strategy,{'CC','PI','PI_FF','PI_SAFE'}))
+    Kp=c.Kp_const; Ki=c.Ki_const;
+else
+    a=min(1,max(0,(soc-.2)/.6));
+    Kp=.055+.035*a; Ki=(35+25*a)*1e-6;
+end
+end
+
+
+================================================================================
+matlab/btms_goal80.m
+================================================================================
+function T=btms_goal80()
+% Life-oriented feasibility study for 35 C ambient fast charging.
+% The 80%-at-10y requirement is NOT met by baseline GS_LIFE at 35 C.
+% We separately model storage temperature and storage SOC as explicit
+% engineering CONDITIONS. An active storage-cooling plant is NOT included.
+root=fileparts(fileparts(mfilename('fullpath')));
+out=fullfile(root,'results'); figDir=fullfile(root,'figures');
+if ~isfolder(out),mkdir(out);end
+if ~isfolder(figDir),mkdir(figDir);end
+c=btms_cfg(); [session,tr]=btms_run_session(c,'GS_LIFE',35);
+if session.status ~= "DONE",error('Charging did not reach the goal SOC.');end
+meanTc=mean(tr(:,2)); Ipeak=max(tr(:,5));
+parkTemps=[35 30 27 25 23 20]; parkSOCs=[.5 .4];
+T=table(); baseLife=[]; conditionalLife=[];
+for temp=parkTemps
+    for parkSoc=parkSOCs
+        [l,s]=btms_life_goal(c,meanTc,Ipeak,35,temp,parkSoc,c.days_per_year);
+        s.Tc_charge_max_C=session.Tmax_C;
+        s.charge_time_min=session.time_min;
+        s.temp_below_40=session.Tmax_C<40;
+        T=[T;s]; %#ok<AGROW>
+        if temp==35 && abs(parkSoc-.5)<1e-9,baseLife=l;end
+        if temp==23 && abs(parkSoc-.4)<1e-9,conditionalLife=l;end
+    end
+end
+writetable(T,fullfile(out,'goal80_feasibility_matlab.csv'));
+assert(~isempty(baseLife) && ~isempty(conditionalLife));
+assert(baseLife.SOH_pct(end)<80,'Expected ambient 35 C baseline to fail the 80% criterion.');
+assert(conditionalLife.SOH_pct(end)>=80,'Conditional design did not meet 80%.');
+assert(session.Tmax_C<40,'Charging pack exceeded the 40 C project temperature limit.');
+figure('Color','w','Name','BTMS lifetime requirement 80%');
+plot(baseLife.years,baseLife.SOH_pct,'LineWidth',2.1);hold on;
+plot(conditionalLife.years,conditionalLife.SOH_pct,'LineWidth',2.4);
+yline(80,'--','80% wymaganie','LineWidth',1.1);
+grid on; xlabel('Lata eksploatacji'); ylabel('SOH (pojemnosciowy) [%]');
+title('10 lat: modelowa wykonalnosc celu 80% SOH');
+legend('Parkowanie 35 C / 50% SOC', ...
+       'Warunkowo: parkowanie 23 C / 40% SOC','Granica 80%', ...
+       'Location','southwest');
+ax=gca;try, ax.Toolbar.Visible='off';catch,end
+exportgraphics(gcf,fullfile(figDir,'matlab_goal80_storage.png'),'Resolution',170);
+sel=T(T.storage_temperature_C==23 & T.storage_SOC==.4,:);
+fprintf('\nCEL 80%% po 10 latach | ladowanie przy Ta=35 C\n');
+fprintf('GS_LIFE ladowanie: Tmax=%.2f C; czas=%.2f min\n',session.Tmax_C,session.time_min);
+fprintf('Bez kontroli parkowania: %.2f%% SOH -> NIE SPELNIA\n',baseLife.SOH_pct(end));
+fprintf('Warunkowo przy 23 C / 40%% SOC w parkowaniu: %.2f%% SOH -> %s\n', ...
+   conditionalLife.SOH_pct(end), char(string(sel.meets_80)));
+fprintf('UWAGA: temperatura parkowania wymaga osobnego BTMS i zuzywa energie; nie jest tu zasymulowana.\n');
+fprintf('Wynik nie jest gwarancja OEM ani walidacja 10 lat danymi NASA.\n');
+end
+
+
+================================================================================
+matlab/btms_life.m
+================================================================================
+function T = btms_life(c,meanTc,Ipeak,Tamb,park_soc)
+% Scenariuszowy model SOH. Nie jest zidentyfikowany na NASA ani na pakiecie EV.
+% Dkal monotonicznie kumuluje dodatnie przyrosty sqrt(t); amplituda sezonowa 7C.
+Dcal=0;Dcyc=0; L=zeros(120,4);
+cfac=1+.2*max(0,Ipeak/c.Qah-1);
+for m=1:120
+    seasonal=7*sin(2*pi*(mod(m-.5,12))/12);
+    Tstore=Tamb+seasonal; Tcyc=meanTc+seasonal;
+    droot=sqrt(m/12)-sqrt((m-1)/12);
+    Dcal=Dcal+c.k_cal*droot*exp(.04*(Tstore-25))*exp(1.1*(park_soc-.5));
+    Dcyc=Dcyc+(c.days_per_year/12)*c.EFC_per_session*c.k_cyc*exp(.03*(Tcyc-25))*cfac;
+    L(m,:)=[m/12,100*max(0,1-Dcal-Dcyc),100*Dcal,100*Dcyc];
+end
+T=array2table(L,'VariableNames',{'years','SOH_pct','Dcal_pp','Dcyc_pp'});
+end
+
+
+================================================================================
+matlab/btms_life_goal.m
+================================================================================
+function [life, summary] = btms_life_goal(c,meanTc,Ipeak,Tcharge,Tstorage,SOCstorage,annualSessions)
+% 10-year scenario: Tcharge controls cycling, Tstorage controls CALENDAR
+% aging independently. This is CONDITIONAL feasibility, not validation.
+% No storage HVAC energy is accounted for in this simplified analysis.
+% Requested target: SOH(10y) >= 80% (capacity retention).
+Dcal=0; Dcyc=0; rows=zeros(120,4);
+cfac=1 + 0.2*max(0,Ipeak/c.Qah-1);
+for m=1:120
+    seasonal=7*sin(2*pi*(mod(m-.5,12))/12);
+    deltaRoot=sqrt(m/12)-sqrt((m-1)/12);
+    Dcal=Dcal+c.k_cal*deltaRoot * exp(.04*(Tstorage+seasonal-25)) * ...
+        exp(1.1*(SOCstorage-.5));
+    Dcyc=Dcyc+(annualSessions/12)*c.EFC_per_session*c.k_cyc * ...
+        exp(.03*(meanTc+seasonal-25))*cfac;
+    rows(m,:)=[m/12,100*max(0,1-Dcal-Dcyc),100*Dcal,100*Dcyc];
+end
+life=array2table(rows,'VariableNames',{'years','SOH_pct','Dcal_pp','Dcyc_pp'});
+summary=table(Tcharge,Tstorage,SOCstorage,annualSessions, ...
+    life.SOH_pct(end),life.Dcal_pp(end),life.Dcyc_pp(end), ...
+    life.SOH_pct(end)>=80, ...
+    'VariableNames',{'charging_ambient_C','storage_temperature_C','storage_SOC', ...
+    'sessions_per_year','SOH_10y_pct','Dcal_pp','Dcyc_pp','meets_80'});
+end
+
+
+================================================================================
+matlab/btms_local_jacobian.m
+================================================================================
+function T=btms_local_jacobian(c)
+% LOCAL JACOBIAN SENSITIVITY, NOT a proof of stability: linearization points
+% are NOT independently computed as stationary equilibria.
+SOC=linspace(.25,.79,5); rows=cell(10,3); row=0;
+for soc=SOC
+ for strategy={'PI','GS'}
+  st=strategy{1}; [Kp,Ki]=btms_gains(c,soc,st);
+  I=120;Ts=27;u=.3;
+  dR_dTc=-.002*c.Rn;
+  A=[1+c.dt*(I^2*dR_dTc-c.Gcs)/c.Cc, c.dt*c.Gcs/c.Cc, 0;...
+     c.dt*(c.Gcs-c.Gcool*(Ts-c.Tcool)*Kp)/c.Cs,...
+     1-c.dt*(c.Gcs+c.Gamb+c.Gcool*u)/c.Cs,...
+     -c.dt*c.Gcool*(Ts-c.Tcool)/c.Cs;...
+     c.dt*Ki,0,1];
+  row=row+1;rows(row,:)={string(st),soc,max(abs(eig(A)))};
+ end
+end
+T=cell2table(rows,'VariableNames',{'strategy','SOC','max_abs_lambda'});
+end
+
+
+================================================================================
+matlab/btms_make_simulink.m
+================================================================================
+function modelName = btms_make_simulink()
+% Create an R2025b Simulink diagram with a supported Level-2 MATLAB
+% S-Function, NOT the obsolete/misspelled 'Interpreted MATLAB Fcn'.
+% The block internally calls the same btms_step.m used by MATLAB runner.
+root = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(root,'matlab'),'-begin');
+if isempty(which('new_system')) || license('test','Simulink') == 0
+    error('Simulink not installed or not licensed. MATLAB analysis remains usable.');
+end
+load_system('simulink');
+modelName = 'BTMS_GS_LIFE_R2025b_FINAL';
+modelDir = fullfile(root,'simulink');
+if ~isfolder(modelDir), mkdir(modelDir); end
+modelFile = fullfile(modelDir,[modelName '.slx']);
+% A distinct name prevents older cached demonstrations from being reused.
+if bdIsLoaded(modelName), close_system(modelName,0); end
+new_system(modelName);
+try
+    add_block('simulink/Sources/Constant',[modelName '/Tamb_35C'], ...
+        'Position',[85 175 170 205], 'Value','35', 'SampleTime','5');
+    src = 'simulink/User-Defined Functions/Level-2 MATLAB S-Function';
+    add_block(src,[modelName '/BTMS_GS_LIFE'], ...
+        'Position',[260 148 465 227], 'FunctionName','btms_sfcn_life80');
+    add_block('simulink/Signal Routing/Demux',[modelName '/Rozdziel_stany'], ...
+        'Position',[570 150 575 300], 'Outputs','4');
+    add_block('simulink/Sinks/Scope',[modelName '/Temperatura_rdzenia'], ...
+        'Position',[680 140 755 185]);
+    add_block('simulink/Sinks/Scope',[modelName '/SOC'], ...
+        'Position',[680 230 755 275]);
+    add_block('simulink/Sinks/To Workspace',[modelName '/Zapis_stanow'], ...
+        'Position',[555 70 745 110], ...
+        'VariableName','BTMS_states','SaveFormat','Structure With Time');
+    add_line(modelName,'Tamb_35C/1','BTMS_GS_LIFE/1','autorouting','on');
+    add_line(modelName,'BTMS_GS_LIFE/1','Rozdziel_stany/1','autorouting','on');
+    add_line(modelName,'BTMS_GS_LIFE/1','Zapis_stanow/1','autorouting','on');
+    add_line(modelName,'Rozdziel_stany/1','Temperatura_rdzenia/1','autorouting','on');
+    add_line(modelName,'Rozdziel_stany/3','SOC/1','autorouting','on');
+    set_param(modelName,'SolverType','Fixed-step', ...
+        'Solver','FixedStepDiscrete','FixedStep','5', ...
+        'StopTime','1800','SaveTime','on');
+    set_param(modelName,'SimulationCommand','update');
+    save_system(modelName,modelFile);
+    fprintf('SIMULINK: new Level-2 model written: %s\n',modelFile);
+catch ME
+    if bdIsLoaded(modelName), close_system(modelName,0); end
+    rethrow(ME);
+end
+end
+
+
+================================================================================
+matlab/btms_nasa_validate.m
+================================================================================
+function T=btms_nasa_validate(filePath)
+% NASA Ames B0005: oryginalne pomiary pojemnosci w cyklach rozladowania.
+% 70/30 PODZIAL CHRONOLOGICZNY; prosty model Q=a+b*sqrt(cycle).
+% NIE waliduje modelu cieplnego EV ani prognozy SOH 10-letniej.
+root=fileparts(fileparts(mfilename('fullpath')));
+if nargin<1 || isempty(filePath)
+    filePath=fullfile(root,'nasa_data','B0005.mat');
+end
+if ~isfile(filePath),error('NASA: brak pliku %s',filePath);end
+S=load(filePath);
+if isfield(S,'B0005')
+    r=S.B0005;
+else
+    vars=fieldnames(S);
+    if isempty(vars),error('NASA: pusty plik MAT');end
+    r=S.(vars{1});
+end
+if ~isstruct(r)||~isfield(r,'cycle')
+    error('NASA: oczekiwano struktury B0005.cycle');
+end
+cycles=r.cycle;
+capacities=zeros(numel(cycles),1); kvalid=0;
+for k=1:numel(cycles)
+    entry=cycles(k);
+    if ~isfield(entry,'type')||~strcmpi(strtrim(char(entry.type)),'discharge')
+        continue
+    end
+    if ~isfield(entry,'data')||~isstruct(entry.data)||~isfield(entry.data,'Capacity')
+        continue
+    end
+    v=double(entry.data.Capacity);
+    if isempty(v),continue;end
+    v=v(1);
+    if ~isfinite(v)||v<=0,continue;end
+    kvalid=kvalid+1;capacities(kvalid)=v;
+end
+capacities=capacities(1:kvalid);
+N=numel(capacities);
+if N<15,error('NASA: za malo prawdziwych cykli rozladowania (N=%d)',N);end
+cy=(1:N)';ntrain=floor(.7*N);
+X=[ones(N,1),sqrt(cy)];
+b=X(1:ntrain,:)\capacities(1:ntrain);
+pred=X*b;
+rmseTrain=sqrt(mean((capacities(1:ntrain)-pred(1:ntrain)).^2));
+rmseTest=sqrt(mean((capacities(ntrain+1:end)-pred(ntrain+1:end)).^2));
+T=table(N,ntrain,N-ntrain,rmseTrain,rmseTest,capacities(1),capacities(end),...
+    'VariableNames',{'n_cycles','train_n','test_n','RMSE_train_Ah','RMSE_test_Ah','C_first_Ah','C_last_Ah'});
+if ~isfolder(fullfile(root,'results')),mkdir(fullfile(root,'results'));end
+if ~isfolder(fullfile(root,'figures')),mkdir(fullfile(root,'figures'));end
+writetable(T,fullfile(root,'results','nasa_validation_matlab.csv'));
+values=table(cy,capacities,pred,'VariableNames',{'discharge_index','capacity_Ah','capacity_fit_Ah'});
+writetable(values,fullfile(root,'results','nasa_B0005_discharge_matlab.csv'));
+f=figure('Color','w','Name','NASA B0005 - rzeczywiste dane');
+plot(cy,capacities,'.','MarkerSize',10,'Color',[.08,.45,.74]); hold on;
+plot(cy,pred,'-','LineWidth',1.8,'Color',[.86,.35,.16]);
+xline(ntrain,'--','70% uczenie / 30% test');
+grid on; xlabel('Numer cyklu rozladowania');ylabel('Pojemnosc [Ah]');
+title('NASA B0005: pomiary vs prosty model sqrt(N)');
+legend('Pomiary NASA','Model bazowy','Podzial chronologiczny','Location','best');
+try, gca.Toolbar.Visible='off';catch,end
+exportgraphics(f,fullfile(root,'figures','nasa_B0005_matlab.png'),'Resolution',160);
+disp(T);
+fprintf('NASA: %d rzeczywistych pomiarow rozladowania. RMSE_test=%.5f Ah.\n',N,rmseTest);
+end
+
+
+================================================================================
+matlab/btms_run_session.m
+================================================================================
+function [S,tr] = btms_run_session(c,strategy,Ta)
+% Powtarzalna sesja 25->80% SOC, jawny Euler dt=5 s.
+x=[Ta;Ta;c.soc0;0]; maxN=round(c.Tmax/c.dt);
+tr=zeros(maxN,13); n=0; t=0; qaux=0; qheat=0; rmse_sum=0; nsat=0; peak=x(1); maxres=0;
+for k=1:maxN
+    if x(3)>=c.soc_target-1e-10, break; end
+    [xn,o]=btms_step(c,strategy,Ta,x);
+    t=t+c.dt; qaux=qaux+o(5)*c.dt/3.6e6; qheat=qheat+o(3)*c.dt/3.6e6;
+    rmse_sum=rmse_sum+o(8)^2; nsat=nsat+double(o(2)>=.999999);
+    maxres=max(maxres,abs(o(10))); peak=max(peak,xn(1));
+    n=n+1;
+    tr(n,:)=[t/60,xn(1),xn(2),xn(3),o(1:6),o(7:9)];
+    x=xn;
+end
+tr=tr(1:n,:);
+if n==0, error('Pusta sesja: brak krokow symulacji'); end
+S=struct('strategy',string(strategy),'ambient_C',Ta,'time_min',t/60,...
+'Tmax_C',peak,'Tend_C',x(1),'energy_aux_kWh',qaux,'energy_heat_kWh',qheat,...
+'SOC_end',x(3),'RMSE_error_K',sqrt(rmse_sum/size(tr,1)), ...
+'sat_fraction',nsat/size(tr,1),'energy_balance_residual_J',maxres,...
+'points',size(tr,1),'mean_Tc_C',mean(tr(:,2)),'Ipeak_A',max(tr(:,5)));
+if x(3)>=c.soc_target-1e-9,S.status="DONE";else,S.status="TIMEOUT";end
+end
+
+
+================================================================================
+matlab/btms_sfcn_life80.m
+================================================================================
+function btms_sfcn_life80(block)
+% Level-2 MATLAB S-function. R2025b: discrete states [Tc; Ts; SOC; z].
+% Input: ambient temperature. Output: the 4 states. No interpreted Fcn block.
+% Calls EXACTLY btms_step(), used by the ordinary MATLAB solver.
+setup(block);
+end
+
+function setup(block)
+block.NumDialogPrms = 0;
+block.NumInputPorts = 1;
+block.NumOutputPorts = 1;
+block.SetPreCompInpPortInfoToDynamic;
+block.SetPreCompOutPortInfoToDynamic;
+block.InputPort(1).Dimensions = 1;
+block.InputPort(1).DatatypeID = 0;
+block.InputPort(1).Complexity = 'Real';
+block.InputPort(1).DirectFeedthrough = false;
+block.OutputPort(1).Dimensions = 4;
+block.OutputPort(1).DatatypeID = 0;
+block.OutputPort(1).Complexity = 'Real';
+block.SampleTimes = [5 0];
+block.SimStateCompliance = 'DefaultSimState';
+block.RegBlockMethod('PostPropagationSetup', @allocateState);
+block.RegBlockMethod('InitializeConditions', @initialize);
+block.RegBlockMethod('Outputs', @outputStates);
+block.RegBlockMethod('Update', @updateStates);
+end
+
+function allocateState(block)
+block.NumDworks = 1;
+block.Dwork(1).Name = 'BTMS_state';
+block.Dwork(1).Dimensions = 4;
+block.Dwork(1).DatatypeID = 0;
+block.Dwork(1).Complexity = 'Real';
+block.Dwork(1).UsedAsDiscState = true;
+end
+
+function initialize(block)
+% The demo is initialized at 35 C, 25% SOC. z is the PI integrator state.
+block.Dwork(1).Data = [35; 35; 0.25; 0];
+end
+
+function outputStates(block)
+block.OutputPort(1).Data = block.Dwork(1).Data;
+end
+
+function updateStates(block)
+c = btms_cfg();
+x = block.Dwork(1).Data;
+Ta = double(block.InputPort(1).Data);
+if x(3) < c.soc_target - 1e-10
+    [xnext, ~] = btms_step(c, 'GS_LIFE', Ta, x);
+    block.Dwork(1).Data = xnext;
+end
+end
+
+
+================================================================================
+matlab/btms_step.m
+================================================================================
+function [xn,o] = btms_step(c,strategy,Ta,x)
+% Jeden krok dt modelu termicznego + PI + anti-windup + feedforward.
+% x = [Tc; Ts; SOC; z]. Brak modelu OCV/CC-CV; taper SOC jest przyblizeniem.
+Tc=x(1); Ts=x(2); soc=x(3); z=x(4);
+clamp=@(v,a,b) min(b,max(a,v));
+f=clamp((soc-c.taper_soc)/(c.soc_target-c.taper_soc),0,1);
+Iprof=c.I_max*(1-f)+c.I_taper*f;
+if any(strcmp(strategy,{'PI_SAFE','GS_SAFE','GS_LIFE'}))
+    fT=clamp((Tc-c.thermal_start)/(c.thermal_full-c.thermal_start),0,1);
+    Itherm=c.I_max-(c.I_max-c.I_min)*fT;
+else
+    Itherm=c.I_max;
+end
+if strcmp(strategy,'GS_LIFE'), Icap=210; else, Icap=c.I_max; end
+I=max(0,min([Iprof,Itherm,Icap,(c.soc_target-soc)*c.Qah*3600/c.dt]));
+R=c.Rn*c.R_scale*clamp(1+.2*(.5-soc)+.002*(25-Tc),.7,1.4);
+Qgen=I^2*R;
+[Kp,Ki]=btms_gains(c,soc,strategy);
+if any(strcmp(strategy,{'PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'}))
+    FF=c.ff_gain*Qgen/c.Tmax_cool;
+else
+    FF=0;
+end
+e=Tc-c.Tref;
+if strcmp(strategy,'CC')
+    u=.20; raw=u; zn=z;
+else
+    raw=Kp*e+z+FF;
+    u=clamp(raw,0,1);
+    if ~((raw>=1 && e>0) || (raw<=0 && e<0))
+        zn=z+Ki*c.dt*e;
+    else
+        zn=z;
+    end
+end
+Qcool=max(0,min(c.Tmax_cool*u,c.Gcool*c.Gcool_scale*u*(Ts-c.Tcool)));
+Qamb=c.Gamb*(Ts-Ta);
+Qcs=c.Gcs*c.Gcs_scale*(Tc-Ts);
+dTc=c.dt*(Qgen-Qcs)/c.Cc;
+dTs=c.dt*(Qcs-Qamb-Qcool)/c.Cs;
+Paux=c.pump_max*u^3+Qcool/c.COP;
+xn=[Tc+dTc; Ts+dTs; min(c.soc_target,soc+I*c.dt/(3600*c.Qah)); zn];
+o=[I,u,Qgen,Qcool,Paux,FF,zn,e,Itherm, ...
+    c.Cc*dTc+c.Cs*dTs-c.dt*(Qgen-Qamb-Qcool)];
+end
+
+
+================================================================================
+matlab/btms_verify_simulink.m
+================================================================================
+function T = btms_verify_simulink(simOut)
+% Compare samples from independently executed Simulink model against
+% the exact MATLAB session (same numerical transition equation).
+root=fileparts(fileparts(mfilename('fullpath')));
+raw=simOut.get('BTMS_states');
+if ~isstruct(raw) || ~isfield(raw,'time') || ~isfield(raw,'signals')
+    error('Simulink: To Workspace must use Structure With Time for BTMS_states.');
+end
+t=double(raw.time(:));
+v=double(squeeze(raw.signals.values));
+if size(v,2) ~= 4 && size(v,1) == 4, v=v.'; end
+if size(v,1) ~= numel(t) || size(v,2) ~= 4
+    error('Simulink returned dimensions %s, expected samples x 4.',mat2str(size(v)));
+end
+c=btms_cfg(); [s,tr]=btms_run_session(c,'GS_LIFE',35);
+if s.status ~= "DONE", error('MATLAB reference run did not finish.'); end
+wanted = round(tr(:,1)*60*1000);
+[tf,loc] = ismember(wanted,round(t*1000));
+if ~all(tf), error('Missing %d timestamps in Simulink output.',sum(~tf)); end
+D=abs(v(loc,1:3)-tr(:,2:4));
+T=table(max(D(:,1)),max(D(:,2)),max(D(:,3)), ...
+    'VariableNames',{'max_error_Tc_K','max_error_Ts_K','max_error_SOC'});
+T.pass = T.max_error_Tc_K < 1e-4 && T.max_error_Ts_K < 1e-4 && ...
+    T.max_error_SOC < 1e-8;
+out=fullfile(root,'results');if ~isfolder(out),mkdir(out);end
+writetable(T,fullfile(out,'simulink_matlab_check.csv'));
+disp(T);
+if ~T.pass, error('Simulink != MATLAB: do not present model as verified.'); end
+fprintf('PASS: Simulink states match the MATLAB GS_LIFE session.\n');
+end
+
+
+================================================================================
+matlab/main_btms.m
+================================================================================
+function main_btms()
+% Punkt startowy (MATLAB; potrzebny jedynie MATLAB bazowy z table/writetable).
+% UWAGA: nowa, jawna implementacja; wyniki NIE musza byc rowne starym slajdom.
+root=fileparts(fileparts(mfilename('fullpath')));
+out=fullfile(root,'results');fig=fullfile(root,'figures');
+if ~exist(out,'dir'),mkdir(out);end
+if ~exist(fig,'dir'),mkdir(fig);end
+c=btms_cfg(); strategies={'CC','PI','GS','PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'};
+ambs=[15,25,35]; cases=struct([]); lrows=cell(24,5);idx=0;
+for a=ambs
+    for i=1:numel(strategies)
+        st=strategies{i};idx=idx+1;
+        [s,tr]=btms_run_session(c,st,a);cases=[cases;s]; %#ok<AGROW>
+        park=c.socpark_regular;if strcmp(st,'GS_LIFE'),park=c.socpark_life;end
+        L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,park);
+        lrows(idx,:)={string(st),a,L.SOH_pct(end),L.Dcal_pp(end),L.Dcyc_pp(end)};
+        if a==35
+            labels={'time_min','Tc_C','Ts_C','SOC','I_A','u','Qgen_W','Qcool_W','Paux_W','FF','integrator','e_K','I_therm_A'};
+            writetable(array2table(tr,'VariableNames',labels),fullfile(out,['session_35C_' st '_matlab.csv']));
+        end
+    end
+end
+writetable(struct2table(cases),fullfile(out,'sessions_summary_matlab.csv'));
+Life=cell2table(lrows,'VariableNames',{'strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp'});
+writetable(Life,fullfile(out,'life_summary_matlab.csv'));
+% Model-based uncertainty stress test: does NOT constitute a formal robustness proof.
+rr=cell(162,8);j=0;
+for r=[.85,1,1.15]
+for gc=[.8,1,1.2]
+for gco=[.8,1,1.2]
+for da=[-3,0,3]
+    c2=c;c2.R_scale=r;c2.Gcs_scale=gc;c2.Gcool_scale=gco;
+    for st={'PI_SAFE','GS_SAFE'}
+        s=btms_run_session(c2,st{1},35+da);j=j+1;
+        rr(j,:)={string(st{1}),r,gc,gco,da,s.Tmax_C,s.time_min,s.status};
+    end
+end
+end
+end
+end
+rr=cell2table(rr,'VariableNames',{'strategy','R_multiplier','Gcs_multiplier','Gcool_multiplier','Ta_offset_C','Tmax_C','time_min','status'});
+writetable(rr,fullfile(out,'robustness_35C_matlab.csv'));
+J=btms_local_jacobian(c);writetable(J,fullfile(out,'local_frozen_jacobian_matlab.csv'));
+% NASA runs ONLY when requested: BTMS_MENU('nasa'). Never as part of basic experiments.
+fprintf('NASA: opcjonalne; nie jest uruchamiane automatycznie.\n');
+fprintf('BTMS completed: %d scenarios. Results in %s\n',numel(cases),out);
+assert(all(arrayfun(@(v) v.status=="DONE",cases)),'Some cases did not finish');
+assert(all(abs([cases.SOC_end]-c.soc_target)<1e-9),'SOC target mismatch');
+assert(height(rr)==162,'Oczekiwano 162 testow niepewnosci');
+assert(all(isfinite([cases.Tmax_C])) && all([cases.time_min]>0),'Niepoprawne wyniki sesji');
+assert(all([cases.energy_balance_residual_J]<1e-7),'Energy balance broken');
+end
+
+
+================================================================================
+matlab/quality_tests.m
+================================================================================
+function quality_tests()
+% Unit/invariant tests, not empirical validation.
+c=btms_cfg();
+assert(abs(c.Qah-175)<1e-10);
+assert(abs(c.Rn-.05376)<1e-10);
+assert(abs(c.En_kWh-60.48)<1e-10);
+for st={'CC','PI','GS','PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'}
+ for Ta=[15,25,35]
+  [s,T]=btms_run_session(c,st{1},Ta);
+  assert(strcmp(s.status,'DONE') && abs(s.SOC_end-.8)<1e-9);
+  assert(all(T(:,6)>=0 & T(:,6)<=1));
+  assert(all(T(:,8)>=0)); % Qcool >= 0
+  assert(s.energy_balance_residual_J<1e-7);
+  L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,Ta,.5);
+  assert(all(diff(L.SOH_pct)<=1e-9)); % SOH must NOT recover by seasonal temperature
+ end
+end
+% Feasibility conditions for 10-year 80% target (assumed model only).
+[s,tr]=btms_run_session(c,'GS_LIFE',35);
+[~,ordinary]=btms_life_goal(c,mean(tr(:,2)),max(tr(:,5)),35,35,.5,300);
+[~,conditional]=btms_life_goal(c,mean(tr(:,2)),max(tr(:,5)),35,23,.4,300);
+assert(s.Tmax_C<40 && ordinary.SOH_10y_pct<80 && conditional.SOH_10y_pct>=80);
+fprintf('Unit and invariance checks passed. Conditional life scenario is model-only.\n');
+end
+
+
+================================================================================
+URUCHOM_MATLAB.m
+================================================================================
+% Skrypt dodatkowy. Najbezpieczniejszy start: START_BTMS.m.
+root=fileparts(mfilename('fullpath'));
+cd(root);addpath(root);addpath(fullfile(root,'matlab'));
+BTMS_MENU('calosc');
+
+
+================================================================================
+URUCHOM_SIMULINK.m
+================================================================================
+% Project Simulink (R2025b): supported Level-2 MATLAB S-Function.
+root=fileparts(mfilename('fullpath'));cd(root);
+addpath(root,'-begin');addpath(fullfile(root,'matlab'),'-begin');
+if isempty(which('new_system')) || ~license('test','Simulink')
+    error('Simulink not available; the core MATLAB project is independent.');
+end
+modelName=btms_make_simulink();
+fprintf('Running Simulink model: %s\n',modelName);
+try
+    out=sim(modelName,'ReturnWorkspaceOutputs','on');
+    report=btms_verify_simulink(out);
+    open_system(modelName);
+    if ~all(report.pass),error('Simulink verification failed');end
+catch ME
+    fprintf(2,'Simulink diagnosis: %s\n',ME.message);
+    rethrow(ME)
+end
+
+
+================================================================================
+URUCHOM_NASA_MATLAB.m
+================================================================================
+% Oryginalny plik NASA B0005.mat jest dolaczony do tej paczki.
+root=fileparts(mfilename('fullpath'));
+cd(root);addpath(root);addpath(fullfile(root,'matlab'));
+fn=fullfile(root,'nasa_data','B0005.mat');
+if ~isfile(fn),error('NASA: nie znaleziono oryginalnego B0005.mat w nasa_data.');end
+N=btms_nasa_validate(fn);
+disp(N);
+
+
+================================================================================
+WYKRESY_MATLAB.m
+================================================================================
+function WYKRESY_MATLAB()
+% Wykresy tylko z plikow *_matlab.csv; nigdy nie miesza referencji Python.
+root=fileparts(mfilename('fullpath'));
+out=fullfile(root,'results'); figdir=fullfile(root,'figures');
+if ~isfolder(figdir),mkdir(figdir);end
+names={'PI','GS','GS_SAFE','GS_LIFE'};
+C=[.15,.43,.75;.07,.63,.48;.92,.47,.28;.48,.33,.75];
+for i=1:numel(names)
+  fn=fullfile(out,['session_35C_' names{i} '_matlab.csv']);
+  if ~isfile(fn),error('Brak %s. Najpierw BTMS_MENU(''calosc'').',fn);end
+end
+fig=figure('Name','BTMS - temperatury 35 C','Color','w','Position',[100 80 970 520]);
+hold on;
+for i=1:numel(names)
+  T=readtable(fullfile(out,['session_35C_' names{i} '_matlab.csv']));
+  plot(T.time_min,T.Tc_C,'LineWidth',2,'Color',C(i,:));
+end
+Tlim=40; plot(xlim,[Tlim Tlim],'--','LineWidth',1.4,'Color',[.85,.22,.24]);
+grid on; xlabel('Czas [min]'); ylabel('Temperatura rdzenia [C]');
+title('BTMS: temperatura rdzenia, T otoczenia = 35 C');
+legend([names {'kryterium 40 C'}],'Location','best');
+try, gca.Toolbar.Visible='off'; catch, end
+exportgraphics(fig,fullfile(figdir,'matlab_temperatura_35C.png'),'Resolution',170);
+fig=figure('Name','BTMS - prady 35 C','Color','w','Position',[120 90 970 520]);
+hold on;
+for i=1:numel(names)
+  T=readtable(fullfile(out,['session_35C_' names{i} '_matlab.csv']));
+  plot(T.time_min,T.I_A,'LineWidth',2,'Color',C(i,:));
+end
+grid on; xlabel('Czas [min]'); ylabel('Prad [A]');
+title('BTMS: prad ladowania, T otoczenia = 35 C');
+legend(names,'Location','best');
+try, gca.Toolbar.Visible='off'; catch, end
+exportgraphics(fig,fullfile(figdir,'matlab_prad_35C.png'),'Resolution',170);
+fprintf('Wykresy zapisano w: %s\n',figdir);
+end
+
+
+================================================================================
+POKAZ_WYNIKI_MATLAB.m
+================================================================================
+% WYGODNY SKROT: pokaz wyniki lub wyjasnij, jak je utworzyc.
+root=fileparts(mfilename('fullpath'));
+cd(root); addpath(root); addpath(fullfile(root,'matlab'));
+BTMS_MENU('wyniki');
