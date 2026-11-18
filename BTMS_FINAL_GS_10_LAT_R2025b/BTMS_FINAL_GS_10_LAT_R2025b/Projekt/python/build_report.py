@@ -1,4 +1,6 @@
-"""Create project report DOCX; render with docx skill afterwards."""
+"""Create project report DOCX (LEGACY generator of an older report version).
+Aktualny raport: Dokumentacja/RAPORT_TECHNICZNY.pdf. Fragmenty o NASA zaktualizowano po przegladzie;
+pozostale teksty opisowe sa NIEAKTUALNE po rundzie 2 (Gcs=1650 W/K, GS po Ts-Tcool) - nie uzywac do prezentacji wynikow."""
 from pathlib import Path
 import pandas as pd
 from docx import Document
@@ -58,7 +60,7 @@ p('Politechnika Opolska · Wydział Elektrotechniki, Automatyki i Informatyki')
 p('Data opracowania: 15 listopada 2026')
 p('')
 p('STATUS NAUKOWY','SmallLabel')
-p('Model dydaktyczny i wyniki jego nowej, jawnej implementacji. Nie są to pomiary baterii EV. Moduł NASA jest przygotowany do niezależnej analizy danych ogniw; nie został uruchomiony na pełnych surowych przebiegach NASA, ponieważ plików tych nie dostarczono.')
+p('Model dydaktyczny i wyniki jego nowej, jawnej implementacji. Nie są to pomiary baterii EV. Moduł NASA analizuje oryginalny plik B0005.mat (pojemności ogniwa 18650), co nie jest walidacją pakietu EV ani modelu termicznego.')
 fig('01_temperature_35C.png','Rys. 1. Przebieg temperatury w symulacji dla temperatury otoczenia 35°C.',14.5)
 newpage();H('Streszczenie i najważniejszy wynik')
 p('Opracowano replikowalny model dwuwęzłowy baterii 96s50p (60,48 kWh nominalnie), regulator chłodzenia PI, wariant Gain Scheduling (GS) z nastawami jako funkcjami SOC, anti-windup, feedforward od I²R oraz nadrzędny ogranicznik prądu. Dla ośmiu strategii i trzech warunków otoczenia uruchomiono 24 sesje ładowania oraz scenariuszową ocenę SOH po dziesięciu latach. Przeprowadzono również 162 testy niepewności dla wersji SAFE i prostą analizę jakobianów zamrożonego modelu.')
@@ -130,8 +132,13 @@ p('Oficjalny zbiór NASA Ames PCoE „Li-ion Battery Aging Datasets” gromadzi 
 p('Na podstawie opublikowanej wtórnej tabeli cykli można przedstawić skrajne pojemności kilku ogniw. Te liczby nie są wynikiem dopasowania w naszym projekcie: B0005 1,857→1,325 Ah, B0006 2,035→1,186 Ah, B0007 1,891→1,433 Ah, B0018 1,855→1,341 Ah. Opracowanie wtórne: Lemonergy, NASA PCoE battery ageing, dostęp 15.11.2026. Pochodzenie pierwotne: NASA Ames PCoE.')
 fig('07_nasa_published_endpoints.png','Rys. 7. Wyłącznie opublikowane wartości skrajne, a nie przebieg modelu ani wykonana walidacja.',14.5)
 h2('Plan niezależnego testu NASA (kod gotowy, test warunkowy)')
-p('W katalogu nasa_data/ należy umieścić B0005.mat z oryginalnego zbioru NASA lub przygotowany CSV z kolumnami cycle, capacity_Ah. Funkcja btms_nasa_validate.m wykorzysta wyłącznie rozładowania, podzieli cykle chronologicznie 70%/30%, dopasuje Q(N)=a+b√N na pierwszych 70% i obliczy RMSE [Ah] dla części testowej. Nie da to jeszcze dopasowania modelu termicznego pakietu ani kalibracji członu kalendarzowego w 10 latach.')
-p('Stan wykonania: brak surowego pliku NASA w dostarczonych materiałach; brak raportu RMSE NASA. Nie dopisano wyniku testowego i nie wstawiono żadnej syntetycznej krzywej jako pomiaru NASA.')
+p('W katalogu nasa_data/ należy umieścić B0005.mat z oryginalnego zbioru NASA lub przygotowany CSV z kolumnami cycle, capacity_Ah. Funkcja btms_nasa_validate.m wykorzysta wyłącznie rozładowania, podzieli cykle chronologicznie 70%/30%, dopasuje Q(N)=a+b√N oraz Q(N)=a+b·N na pierwszych 70% i obliczy RMSE [Ah] dla części testowej. Nie da to jeszcze dopasowania modelu termicznego pakietu ani kalibracji członu kalendarzowego w 10 latach.')
+nv=RESULTS/'nasa_validation_python.csv'
+if nv.is_file():
+ nvd=pd.read_csv(nv).iloc[0]
+ p(f'Stan wykonania: przeanalizowano {int(nvd.n_cycles)} cykli rozładowania B0005. RMSE testu: model √N {nvd.RMSE_test_Ah:.3f} Ah'+(f', model liniowy {nvd.RMSE_test_lin_Ah:.3f} Ah, persystencja {nvd.RMSE_test_persistence_Ah:.3f} Ah.' if 'RMSE_test_lin_Ah' in nvd else '.'))
+else:
+ p('Stan wykonania: brak pliku wyników NASA; uruchom python/nasa_validate.py nasa_data/B0005.mat.')
 
 H('9. Weryfikacja, odtwarzalność i zakres zastosowań')
 bullets(['Przetestowano 24 symulacje i 162 warianty niepewności w niezależnej implementacji Python; wszystkie sesje osiągnęły 80% SOC.','Maksymalna bezwzględna reszta bilansu energetycznego w kroku dyskretnym wyniosła około 1,1×10⁻¹¹ J (obliczenia zmiennoprzecinkowe).','Sprawdzono monotoniczność SOH, nieujemność Qcool i ograniczenie 0≤u≤1 w testach referencyjnych.','Kod MATLAB przygotowano jako edytowalną implementację porównawczą; nie uruchamiano go w tym środowisku (brak instalacji MATLAB/Simulink).','Niezależna walidacja na danych termicznych rzeczywistego pakietu i formalna analiza odporności LPV pozostają do wykonania.'])

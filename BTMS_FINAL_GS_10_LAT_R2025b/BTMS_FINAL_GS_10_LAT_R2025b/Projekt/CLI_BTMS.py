@@ -34,10 +34,12 @@ COMMANDS = [
     ('opencharts', 'otworz katalog wykresow w eksploratorze'),
     ('results',    'lista tabel i plikow wynikowych'),
     ('params',     'skad pobierane sa parametry modelu'),
-    ('gains',      'harmonogram nastaw Kp(SOC), Ki(SOC)'),
+    ('gains',      'harmonogram nastaw Kp, Ki w funkcji Ts-Tcool'),
     ('trace',      'przebieg Tc / Ts / SOC / I / u dla GS_SAFE w 35C'),
     ('energy',     'cieplo i energia chlodziarki w sesji 35C'),
     ('nasa',       'walidacja rzeczywistych danych NASA, o ile sa'),
+    ('gcs',        'wrazliwosc wynikow na przewodnosc rdzen-powierzchnia Gcs'),
+    ('goal80',     'warunki spelnienia SOH>=80% po 10 latach (Python)'),
     ('presentation','otworz prezentacje na wyklad'),
     ('report',     'otworz raport projektu'),
     ('sources',    'lista kodu MATLAB/Python i funkcji'),
@@ -132,17 +134,19 @@ def compare():
                   f"RMSE={fld(r,'RMSE_error_K'):>7} K")
     if 'PI' in d and 'GS' in d:
         print('\nGS - PI (35 C): dTmax =',round(float(d['GS']['Tmax_C'])-float(d['PI']['Tmax_C']),3),'C')
-        print('W tych warunkach sam GS NIE wykazuje istotnej przewagi nad PI.')
-    print('Warianty *_SAFE ograniczaja PRAD, co zmienia takze czas ladowania.')
+        print('Punkt projektowy GS to Ts-Tcool = 17 K (goraca powierzchnia przy 35 C): tam GS ~ PI;')
+        print('roznice widac w chlodniejszych warunkach (summary: 15 i 25 C).')
+    print('Warianty *_SAFE ograniczaja PRAD tylko powyzej 36,5 C; nominalnie przy Gcs=1650 W/K nie wlaczaja sie.')
 
 def life():
     title('SOH PO 10 LATACH | PROGNOZA SCENARIUSZOWA')
     rows=load_csv('life_summary.csv')
     if not rows:return
-    print(f"{'Strategia':<13}{'Ta':>5}{'SOH 10y [%]':>15}{'kalendarz [pp]':>18}{'cykle [pp]':>14}")
+    print(f"{'Strategia':<13}{'Ta':>5}{'SOH 10y [%]':>13}{'kalendarz [pp]':>16}{'cykle [pp]':>12}{'postoj 50% [%]':>16}")
     for r in rows:
-        print(f"{r['strategy']:<13}{fld(r,'ambient_C','.0f'):>5}{fld(r,'SOH_10y_pct'):>15}"
-              f"{fld(r,'Dcal_pp'):>18}{fld(r,'Dcyc_pp'):>14}")
+        print(f"{r['strategy']:<13}{fld(r,'ambient_C','.0f'):>5}{fld(r,'SOH_10y_pct'):>13}"
+              f"{fld(r,'Dcal_pp'):>16}{fld(r,'Dcyc_pp'):>12}{fld(r,'SOH_10y_park050_pct'):>16}")
+    print('SOH 10y: postoj przy 78% SOC dla wszystkich strategii; ostatnia kolumna = polityka postoju 50% SOC.')
     print('UWAGA: parametry starzenia sa ZALOZENIAMI MODELU; nie ma kalibracji NASA.')
 
 def robustness():
@@ -163,12 +167,14 @@ def robustness():
     print('To test zadanych perturbacji, NIE formalna gwarancja stabilnosci.')
 
 def stability():
-    title('LOKALNE BIEGUNY DYSKRETNE: PUNKTY ZAMROZONE')
+    title('LOKALNE BIEGUNY DYSKRETNE: PUNKTY ROWNOWAGI PI')
     rows=load_csv('local_frozen_jacobian.csv')
     if not rows:return
-    print(f"{'Regulator':<13}{'SOC':>10}{'max |lambda|':>18}")
-    for r in rows:print(f"{r['strategy']:<13}{fld(r,'SOC','.2f'):>10}{fld(r,'max_abs_lambda','.6f'):>18}")
-    print('OSTROZNIE: to liniaryzacja w zadanych punktach, nie pelny dowod stabilnosci LPV.')
+    print(f"{'Regulator':<11}{'Ta':>5}{'SOC':>7}{'I [A]':>8}{'Ts* [C]':>9}{'u*':>8}{'osiagalny':>11}{'max |lambda|':>15}")
+    for r in rows:print(f"{r['strategy']:<11}{fld(r,'Ta_C','.0f'):>5}{fld(r,'SOC','.2f'):>7}{fld(r,'I_A','.0f'):>8}{fld(r,'Ts_eq_C','.1f'):>9}"
+                        f"{fld(r,'u_eq','.2f'):>8}{r.get('feasible','---'):>11}{fld(r,'max_abs_lambda','.6f'):>15}")
+    print('Punkt pracy = wyznaczona rownowaga PI (Tc=Tref). osiagalny=False: Tref nieosiagalne,')
+    print('petla musi sie nasycic i analiza liniowa nie ma zastosowania. To nie jest dowod stabilnosci LPV.')
 
 def quality():
     title('JAKOSC I NIEZMIENNIKI MODELU')
@@ -192,7 +198,7 @@ def results():
 
 def params():
     title('PARAMETRY I DOSTEPNE STRATEGIE')
-    print('Pakiet: 96s50p, Un=345.6 V, Qn=175 Ah, En=60.48 kWh, Rn=0.05376 ohm')
+    print('Pakiet: 96s50p, Un=345.6 V, Qn=175 Ah, En=60.48 kWh, Rn=0.05376 ohm, Gcs=1650 W/K (2,9 K/W na ogniwo)')
     print('SOC 25->80%; krok dt=5 s; scenariusze otoczenia 15 / 25 / 35 C')
     print('Strategie:',', '.join(STRATS))
     print('MATLAB konfiguracja:  Projekt/matlab/btms_cfg.m')
@@ -200,12 +206,13 @@ def params():
     print('Zmiana parametrow tylko w jednej implementacji zerwie bezposrednia zgodnosc.')
 
 def gains_schedule():
-    title('GAIN SCHEDULING | HARMONOGRAM PI W FUNKCJI SOC')
-    print('Nastawy przyjete modelowo, a NIE z eksperymentalnej identyfikacji.')
-    print(f"{'SOC [%]':>10} {'Kp_PI':>12} {'Ki_PI [1/s]':>15} {'Kp_GS':>13} {'Ki_GS [1/s]':>15}")
-    for soc in (.25, .40, .55, .70, .80):
-        a=min(1,max(0,(soc-.2)/.6))
-        print(f'{100*soc:10.0f} {0.0725:12.5f} {47.5e-6:15.7f} {(.055+.035*a):13.5f} {((35+25*a)*1e-6):15.7f}')
+    title('GAIN SCHEDULING | NASTAWY PI W FUNKCJI Ts - Tcool')
+    print('Wzmocnienie chlodzenia dQcool/du = Gcool*(Ts-Tcool): GS utrzymuje Kp*Gcool*(Ts-Tcool) stale.')
+    print('Kp,Ki = PI * clip(17/(Ts-Tcool), 1, 3); punkt projektowy Ts-Tcool = 17 K (35-18 C).')
+    print(f"{'Ts-Tcool [K]':>13} {'Kp_PI':>9} {'Ki_PI [1/s]':>13} {'Kp_GS':>9} {'Ki_GS [1/s]':>13}")
+    for rho in (4, 6, 8, 10, 12, 14, 17, 20):
+        k=min(3.,max(1.,17./max(rho,17./3.)))
+        print(f'{rho:13.0f} {0.0725:9.4f} {47.5e-6:13.7f} {0.0725*k:9.4f} {47.5e-6*k:13.7f}')
     print('Porownaj rownolegle: matlab/btms_gains.m i python/run_reference.py')
 
 def trace():
@@ -255,7 +262,7 @@ def sources():
     for f in sorted((ROOT/'matlab').glob('*.m')):print('  MATLAB:',f.name)
     for f in sorted((ROOT/'python').glob('*.py')):print('  Python:',f.name)
     print('  TESTY:  tests/test_reference.py')
-    print('  DOKUMENTACJA: Dokumentacja/RAPORT_PROJEKTU.pdf')
+    print('  DOKUMENTACJA: Dokumentacja/RAPORT_TECHNICZNY.pdf')
 
 def execute(mode):
     mode=mode.lower().strip()
@@ -263,7 +270,10 @@ def execute(mode):
     elif mode=='status':status()
     elif mode in ('demo','full','tests'):
         require_deps()
-        if mode in ('demo','full'):run_child(ROOT/'python'/'run_reference.py')
+        if mode in ('demo','full'):
+            run_child(ROOT/'python'/'run_reference.py')
+            run_child(ROOT/'python'/'life_goal80.py')
+            run_child(ROOT/'python'/'sensitivity_gcs.py')
         if mode in ('demo','tests'):run_child(ROOT/'tests'/'test_reference.py')
         if mode=='demo':
             summary();compare();gains_schedule();trace();energy();life();robustness();stability();quality();charts();nasa()
@@ -282,15 +292,17 @@ def execute(mode):
     elif mode in ('trace','telemetry'):trace()
     elif mode=='energy':energy()
     elif mode=='nasa':nasa()
+    elif mode=='gcs':require_deps();run_child(ROOT/'python'/'sensitivity_gcs.py')
+    elif mode in ('goal80','cel80'):require_deps();run_child(ROOT/'python'/'life_goal80.py')
     elif mode=='presentation':open_file(ROOT.parent/'Prezentacja'/'BTMS_WYKLAD_FABIANEK_FORTUNA.pptx')
-    elif mode=='report':open_file(ROOT/'Dokumentacja'/'RAPORT_PROJEKTU.pdf')
+    elif mode=='report':open_file(ROOT/'Dokumentacja'/'RAPORT_TECHNICZNY.pdf')
     elif mode=='sources':sources()
     elif mode=='matlab':
         title('MATLAB');print('W CMD: POKAZ.cmd matlab-run')
         print('Alternatywa: w MATLAB przez Home -> Open wybierz URUCHOM_MATLAB.m i Run.')
     elif mode=='simulink':
         title('SIMULINK');print('W CMD: POKAZ.cmd simulink-run')
-        print('Wymaga MATLAB+Simulink; generowany model jest demonstratorem niezweryfikowanym lokalnie.')
+        print('Wymaga MATLAB+Simulink. Weryfikacja: stany Simulink == sesja MATLAB GS_LIFE (ta sama btms_step).')
     else:
         print('Nieznana komenda:',mode)
         help_page();return False

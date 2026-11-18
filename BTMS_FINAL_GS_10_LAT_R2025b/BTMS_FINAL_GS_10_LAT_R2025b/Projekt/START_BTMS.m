@@ -23,5 +23,5 @@ rehash;
 fprintf('\nBTMS FINAL R2025b | uruchomione z: %s\n',root);
 fprintf('Biezace BTMS_MENU.m: %s\n',which('BTMS_MENU'));
 fprintf('Nowy model Simulink: Level-2 MATLAB S-Function.\n');
-fprintf('Najpierw 8: calosc, 22: cel80, 18: simulink, 19: nasa.\n');
+fprintf('Najpierw 8: calosc, 22: cel80, 18: simulink, 19: nasa, 23: gcs.\n');
 BTMS_MENU();

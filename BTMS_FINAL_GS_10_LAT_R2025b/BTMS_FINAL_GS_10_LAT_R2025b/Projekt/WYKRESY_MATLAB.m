@@ -19,7 +19,7 @@ Tlim=40; plot(xlim,[Tlim Tlim],'--','LineWidth',1.4,'Color',[.85,.22,.24]);
 grid on; xlabel('Czas [min]'); ylabel('Temperatura rdzenia [C]');
 title('BTMS: temperatura rdzenia, T otoczenia = 35 C');
 legend([names {'kryterium 40 C'}],'Location','best');
-try, gca.Toolbar.Visible='off'; catch, end
+ax=gca; try, ax.Toolbar.Visible='off'; catch, end
 exportgraphics(fig,fullfile(figdir,'matlab_temperatura_35C.png'),'Resolution',170);
 fig=figure('Name','BTMS - prady 35 C','Color','w','Position',[120 90 970 520]);
 hold on;
@@ -30,7 +30,7 @@ end
 grid on; xlabel('Czas [min]'); ylabel('Prad [A]');
 title('BTMS: prad ladowania, T otoczenia = 35 C');
 legend(names,'Location','best');
-try, gca.Toolbar.Visible='off'; catch, end
+ax=gca; try, ax.Toolbar.Visible='off'; catch, end
 exportgraphics(fig,fullfile(figdir,'matlab_prad_35C.png'),'Resolution',170);
 fprintf('Wykresy zapisano w: %s\n',figdir);
 end

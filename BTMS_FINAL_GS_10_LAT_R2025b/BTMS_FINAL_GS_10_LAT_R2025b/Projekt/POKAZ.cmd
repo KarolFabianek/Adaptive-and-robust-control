@@ -8,16 +8,6 @@ if /i "%MODE%"=="matlab-run" goto :matlab
 if /i "%MODE%"=="simulink-run" goto :simulink
 if /i "%MODE%"=="matlab-nasa" goto :nasa_matlab
 if /i "%MODE%"=="matlab-results" goto :results_matlab
-if /i "%MODE%"=="help" (
-    type KOMENDY.txt
-    popd
-    exit /b 0
-)
-if /i "%MODE%"=="pomoc" (
-    type KOMENDY.txt
-    popd
-    exit /b 0
-)
 if exist ".venv\Scripts\python.exe" (
     ".venv\Scripts\python.exe" "CLI_BTMS.py" %*
     if errorlevel 1 (set "RET=1") else (set "RET=0")
@@ -36,8 +26,8 @@ if not errorlevel 1 (
     goto :end
 )
 echo BLAD: Python nie jest dostepny.
-echo Lista komend ponizej; do obliczen zainstaluj Python 3.10+.
-type KOMENDY.txt
+echo Komendy MATLAB ponizej; do obliczen w Pythonie zainstaluj Python 3.10+.
+type KOMENDY_MATLAB.txt
 set "RET=1"
 goto :end
 

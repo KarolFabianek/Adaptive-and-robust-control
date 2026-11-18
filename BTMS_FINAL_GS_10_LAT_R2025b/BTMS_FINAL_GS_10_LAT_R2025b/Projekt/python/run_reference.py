@@ -27,11 +27,14 @@ class Config:
  dt:float=5.0; Tmax:float=7200.0
  ns:int=96; np:int=50; U_cell:float=3.6; Ah_cell:float=3.5; R_cell:float=0.028
  mass_cell:float=0.048; cp:float=900.; Cfrac:float=0.76
- Gcs:float=165.; Gamb:float=25.; Gcool:float=470.
+ # Gcs: 1650 W/K = 4800 ogniw / 2,9 K/W (18650, k_r=0,43 W/mK; Bhundiya i in. 2018). Wczesniej 165 W/K (~29 K/W, za malo).
+ Gcs:float=1650.; Gamb:float=25.; Gcool:float=470.
  Tmax_cool:float=6500.; Tcool:float=18.; COP:float=2.6; pump_max:float=400.
  soc0:float=.25; soc_target:float=.80; taper_soc:float=.70; I_max:float=300.; I_taper:float=130.
  Tref:float=30.; Tlim:float=40.; thermal_start:float=36.5; thermal_full:float=39.5; I_min:float=110.
  ff_gain:float=.70; Kp_const:float=.0725; Ki_const:float=47.5e-6
+ # Gain Scheduling po rho = Ts - Tcool (wzmocnienie chlodzenia ~ Gcool*rho): Kp,Ki = PI * clip(rho0/rho, smin, smax)
+ gs_rho0:float=17.; gs_smin:float=1.; gs_smax:float=3.
  R_scale:float=1.; Gcs_scale:float=1.; Gcool_scale:float=1.
  k_cal:float=.025; k_cyc:float=5.e-5; socpark_regular:float=.78; socpark_life:float=.50
  days_per_year:float=300.; EFC_per_session:float=.55
@@ -54,11 +57,16 @@ PALETTE={'CC':MUTED,'PI':BLUE,'GS':TEAL,'PI_FF':'#a4baff','GS_FF':'#59d8b8','PI_
 def clip(x,lo,hi):return min(max(x,lo),hi)
 def rpack(cfg,soc,Tc):
  return cfg.Rn*cfg.R_scale*clip(1+.2*(.5-soc)+.002*(25-Tc),.7,1.4)
-def gains(cfg,soc,strategy):
+def gain_scale(cfg,Ts):
+ # Wzmocnienie obiektu dQcool/du = Gcool*(Ts-Tcool). PI dostrojony w punkcie projektowym rho0 = 35-18 = 17 K
+ # (goraca powierzchnia); GS utrzymuje iloczyn Kp*Gcool*rho stały, gdy rho maleje. Ograniczenie [smin, smax].
+ rho=max(Ts-cfg.Tcool,cfg.gs_rho0/cfg.gs_smax)
+ return clip(cfg.gs_rho0/rho,cfg.gs_smin,cfg.gs_smax)
+def gains(cfg,strategy,Ts):
  if strategy in ('CC','PI','PI_FF','PI_SAFE'):
   return cfg.Kp_const,cfg.Ki_const
- a=clip((soc-.2)/.6,0,1)
- return .055+.035*a,(35.+25.*a)*1e-6
+ k=gain_scale(cfg,Ts)
+ return cfg.Kp_const*k,cfg.Ki_const*k
 
 def run_session(cfg, strategy, Tamb=35., return_trace=True):
  assert strategy in STRATS
@@ -77,7 +85,7 @@ def run_session(cfg, strategy, Tamb=35., return_trace=True):
   I=min(iprofile,itherm,ilim,(cfg.soc_target-soc)*cfg.Qah*3600./cfg.dt)
   I=max(0,I)
   R=rpack(cfg,soc,Tc); qgen=I*I*R
-  Kp,Ki=gains(cfg,soc,strategy)
+  Kp,Ki=gains(cfg,strategy,Ts)
   ff=(cfg.ff_gain*qgen/cfg.Tmax_cool) if strategy in ('PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE') else 0.
   e=Tc-cfg.Tref
   if strategy=='CC': u=.2; znew=z; raw=u
@@ -129,6 +137,39 @@ def life_model(cfg, meanTc, Ipeak, Tamb, park_soc, months=120):
   points.append((m/12, 100*max(0,1-Dcal-Dcyc),100*Dcal,100*Dcyc))
  return np.array(points)
 
+JACOBIAN_HEADERS=['strategy','SOC','I_A','Ta_C','Ts_eq_C','u_eq','feasible','max_abs_lambda','tau_dominant_s']
+
+def local_equilibrium_jacobian(cfg):
+ """Local linearization at the COMPUTED PI equilibrium (Tc=Tref). Not a global/LPV stability proof.
+ If no equilibrium exists (Ts*<=Tcool or u* outside [0,1]) Tref is unreachable at that current:
+ the loop must saturate and linear analysis does not apply (feasible=False, lambda=NaN).
+ GS gains are evaluated at Ts*; their derivative w.r.t. Ts multiplies e=0, so A keeps its form.
+ Mirrors matlab/btms_local_jacobian.m."""
+ rows=[]
+ for Ta in (15.,25.,35.):
+  for I in (120.,210.,300.):
+   for soc in (.25,.52,.79):
+    for st in ('PI','GS'):
+     Gcs=cfg.Gcs*cfg.Gcs_scale; G=cfg.Gcool*cfg.Gcool_scale
+     Tc=cfg.Tref; R=rpack(cfg,soc,Tc); qgen=I*I*R
+     Ts=Tc-qgen/Gcs
+     Kp,Ki=gains(cfg,st,Ts)
+     qcool=qgen-cfg.Gamb*(Ts-Ta)
+     if G*(Ts-cfg.Tcool)<=cfg.Tmax_cool:
+      Bu=G*(Ts-cfg.Tcool); u=qcool/Bu; Bs=G*u
+     else:
+      Bu=cfg.Tmax_cool; u=qcool/Bu; Bs=0.
+     feasible=bool(Ts>cfg.Tcool and 0.<=u<=1.)
+     lam=float('nan'); tau=float('nan')
+     if feasible:
+      dR_dTc=-.002*cfg.Rn*cfg.R_scale
+      A=np.array([[1+cfg.dt*(I*I*dR_dTc-Gcs)/cfg.Cc,cfg.dt*Gcs/cfg.Cc,0],
+                  [cfg.dt*(Gcs-Bu*Kp)/cfg.Cs,1-cfg.dt*(Gcs+cfg.Gamb+Bs)/cfg.Cs,-cfg.dt*Bu/cfg.Cs],
+                  [cfg.dt*Ki,0,1]])
+      lam=float(max(abs(np.linalg.eigvals(A)))); tau=-cfg.dt/math.log(lam)
+     rows.append([st,float(soc),I,Ta,Ts,u,feasible,lam,tau])
+ return rows
+
 def save_csv(file,rows,headers):
  with (RESULT/file).open('w',newline='',encoding='utf-8') as f:
   w=csv.writer(f);w.writerow(headers);w.writerows(rows)
@@ -145,21 +186,31 @@ def make_figures(summary,trace):
   a=trace[(st,35.)];ax.plot(a[:,0],a[:,1],lw=2.5,c=PALETTE[st],label=st)
  ax.axhline(40,color=RED,linestyle='--',linewidth=1.4,alpha=.85,label='Limit projektu 40°C')
  ax.set(title='Temperatura rdzenia podczas ładowania · Ta = 35°C',xlabel='Czas [min]',ylabel='Tc [°C]');restyle(ax);ax.legend(ncol=3,fontsize=9,loc='upper left');fig.tight_layout();fig.savefig(FIG/'01_temperature_35C.png',dpi=180);plt.close(fig)
- # 02: current
+ # 02: current - nominal (supervisor inactive) + worst case of the 162-case uncertainty grid (supervisor active)
  fig,ax=plt.subplots(figsize=(12,5.2))
- for st in ['PI','GS','GS_SAFE','GS_LIFE']:
-  a=trace[(st,35.)];ax.plot(a[:,0],a[:,4],lw=2.6,c=PALETTE[st],label=st)
- ax.set(title='Nadzór termiczny ogranicza prąd · Ta = 35°C',xlabel='Czas [min]',ylabel='Prąd I [A]');restyle(ax);ax.legend(ncol=4,fontsize=10);fig.tight_layout();fig.savefig(FIG/'02_current_35C.png',dpi=180);plt.close(fig)
- # 03: tradeoff
+ a=trace[('PI',35.)];ax.plot(a[:,0],a[:,4],lw=2.6,c=BLUE,label='PI / GS / *_SAFE · nominalnie (nadzór nieaktywny)')
+ a=trace[('GS_LIFE',35.)];ax.plot(a[:,0],a[:,4],lw=2.6,c=PALETTE['GS_LIFE'],label='GS_LIFE · limit 210 A')
+ worst=replace(Config(),R_scale=1.15,Gcs_scale=.8,Gcool_scale=.8)
+ w=run_session(worst,'GS_SAFE',38.)['trace']
+ ax.plot(w[:,0],w[:,4],lw=2.4,c=RED,ls='--',label='GS_SAFE · najgorszy z 162 przypadków (Ta=38°C, R+15%, Gcs i Gcool −20%)')
+ ax.set(title='Prąd ładowania · Ta = 35°C: nadzór termiczny działa dopiero w warunkach skrajnych',xlabel='Czas [min]',ylabel='Prąd I [A]',ylim=(0,330));restyle(ax);ax.legend(fontsize=9,loc='lower left');fig.tight_layout();fig.savefig(FIG/'02_current_35C.png',dpi=180);plt.close(fig)
+ # 03: tradeoff - strategies within 0.15 K and same time share one label
  fig,ax=plt.subplots(figsize=(11.5,5.5))
- for x in summary:
-  if x['ambient_C']!=35:continue
+ grps=[]
+ for x in [x for x in summary if x['ambient_C']==35]:
+  for g in grps:
+   if abs(g[0]['time_min']-x['time_min'])<1e-6 and abs(g[0]['Tmax_C']-x['Tmax_C'])<.15: g.append(x);break
+  else: grps.append([x])
+ for grp in grps:
+  x=grp[0]
   ax.scatter(x['time_min'],x['Tmax_C'],s=145,color=PALETTE[x['strategy']],zorder=4,edgecolors=LIGHT,linewidths=.5)
-  offsets={'CC':(9,10),'PI':(9,18),'GS':(9,-12),'PI_FF':(9,-22),'GS_FF':(9,-36),'PI_SAFE':(-88,18),'GS_SAFE':(12,-22),'GS_LIFE':(-80,15)}
-  dx,dy=offsets[x['strategy']]
-  ax.annotate(x['strategy'],(x['time_min'],x['Tmax_C']),xytext=(dx,dy),textcoords='offset points',fontsize=9,
-    arrowprops={'arrowstyle':'-','color':GRID,'lw':.7})
- ax.axhline(40,ls='--',color=RED,lw=1.4);ax.set(title='Kompromis: czas ładowania a temperatura maksymalna',xlabel='Czas 25–80% SOC [min]',ylabel='Tc,max [°C]');restyle(ax);fig.tight_layout();fig.savefig(FIG/'03_tradeoff.png',dpi=180);plt.close(fig)
+  same=all(abs(g['Tmax_C']-x['Tmax_C'])<.005 for g in grp)
+  vals=f"{x['Tmax_C']:.1f}°C" if same else ' / '.join(f"{g['Tmax_C']:.2f}" for g in grp)+'°C'
+  lab=(' = ' if same else ' ≈ ').join(g['strategy'] for g in grp)+f'  ({vals})'
+  right=x['time_min']>25
+  ax.annotate(lab,(x['time_min'],x['Tmax_C']),xytext=(-12 if right else 12,0),textcoords='offset points',fontsize=9,
+    ha='right' if right else 'left',va='center')
+ ax.axhline(40,ls='--',color=RED,lw=1.4);ax.set(title='Kompromis: czas ładowania a temperatura maksymalna · Ta = 35°C',xlabel='Czas 25–80% SOC [min]',ylabel='Tc,max [°C]',xlim=(20,29.5));restyle(ax);fig.tight_layout();fig.savefig(FIG/'03_tradeoff.png',dpi=180);plt.close(fig)
  # 04: cooling energy
  arr=[x for x in summary if x['ambient_C']==35.];
  fig,ax=plt.subplots(figsize=(11.6,5.0)); xx=np.arange(len(arr));ax.bar(xx,[x['energy_aux_kWh'] for x in arr],color=[PALETTE[x['strategy']] for x in arr],width=.7)
@@ -171,7 +222,7 @@ def make_figures(summary,trace):
   l=life_model(Config(),vals['mean_Tc_C'],vals['Ipeak_A'],Ta,.50)
   ax.plot(l[:,0],l[:,1],color=c,linewidth=3,label=f'klimat {Ta}°C · {l[-1,1]:.1f}%')
  ax.axhline(80,ls='--',c=RED,lw=1.6,label='Próg projektu 80%')
- ax.set(title='Scenariuszowy SOH dla GS_LIFE · model niezwalidowany',xlabel='Czas [lata]',ylabel='SOH [%]',ylim=(60,103));restyle(ax);ax.legend(loc='lower left');fig.tight_layout();fig.savefig(FIG/'05_soh_scenarios.png',dpi=180);plt.close(fig)
+ ax.set(title='Scenariuszowy SOH: GS_LIFE + postój 50% SOC · model niezwalidowany',xlabel='Czas [lata]',ylabel='SOH [%]',ylim=(60,103));restyle(ax);ax.legend(loc='lower left');fig.tight_layout();fig.savefig(FIG/'05_soh_scenarios.png',dpi=180);plt.close(fig)
  # 06: PI vs GS, direct isolates schedule, at 35 C
  fig,ax=plt.subplots(figsize=(11.6,5.2));
  for st in ['PI','GS']:
@@ -193,13 +244,16 @@ def run():
    d=run_session(cfg,st,Ta)
    traces[(st,Ta)]=d.pop('trace'); summary.append(d)
    aux=np.array(traces[(st,Ta)])
-   meanTc=float(np.mean(aux[:,1])); imax=float(np.max(aux[:,4])); park=.5 if st=='GS_LIFE' else .78
+   meanTc=float(np.mean(aux[:,1])); imax=float(np.max(aux[:,4])); park=cfg.socpark_regular  # ten sam postoj dla wszystkich
    d['mean_Tc_C']=meanTc; d['Ipeak_A']=imax
    yy=life_model(cfg,meanTc,imax,Ta,park)
-   lifes.append((st,Ta,float(yy[-1,1]),float(yy[-1,2]),float(yy[-1,3])))
+   # Fair comparison: the same parking SOC for every strategy (GS_LIFE alone parks at 50%).
+   # Polityka postoju (50% SOC) to osobna decyzja uzytkowania, nie cecha strategii ladowania: pokazana osobno.
+   y50=life_model(cfg,meanTc,imax,Ta,cfg.socpark_life)
+   lifes.append((st,Ta,float(yy[-1,1]),float(yy[-1,2]),float(yy[-1,3]),float(y50[-1,1])))
    if Ta==35.:save_csv(f'session_35C_{st}.csv',aux,['time_min','Tc_C','Ts_C','SOC','I_A','u','Qgen_W','Qcool_W','Paux_W','FF','integrator','e_K','I_therm_A'])
  save_csv('sessions_summary.csv',[[d[k] for k in d] for d in summary],list(summary[0]))
- save_csv('life_summary.csv',lifes,['strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp'])
+ save_csv('life_summary.csv',lifes,['strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp','SOH_10y_park050_pct'])
  # Isolated PI vs GS, with identical environment and current profile. NO sensors estimated in this model.
  robustness=[]
  for r,gc,gcool,taOffset in itertools.product((.85,1.,1.15),(.8,1.,1.2),(.8,1.,1.2),(-3.,0.,3.)):
@@ -208,28 +262,21 @@ def run():
    d=run_session(c,st,35.+taOffset,False)
    robustness.append([st,r,gc,gcool,taOffset,d['Tmax_C'],d['time_min'],d['status']])
  save_csv('robustness_35C.csv',robustness,['strategy','R_multiplier','Gcs_multiplier','Gcool_multiplier','Ta_offset_C','Tmax_C','time_min','status'])
- # fixed-gain analytic thermal Jacobian near operating conditions (for unsaturated, fixed operating point)
- poles=[]
- for soc in np.linspace(.25,.79,5):
-  for st in ('PI','GS'):
-   Kp,Ki=gains(cfg,soc,st)
-   I=120.; Tc=30.;Ts=27.;u=.3; R=rpack(cfg,soc,Tc)
-   # local plant Jacobian; derivatives R(Tc) and Qcool(Ts) in active, non-saturated regime
-   dR_dTc=-.002*cfg.Rn
-   A=np.array([[1+cfg.dt*(I*I*dR_dTc-cfg.Gcs)/cfg.Cc,cfg.dt*cfg.Gcs/cfg.Cc,0],
-               [cfg.dt*(cfg.Gcs-cfg.Gcool*(Ts-cfg.Tcool)*Kp)/cfg.Cs,
-                 1-cfg.dt*(cfg.Gcs+cfg.Gamb+cfg.Gcool*u)/cfg.Cs,
-                 -cfg.dt*cfg.Gcool*(Ts-cfg.Tcool)/cfg.Cs],
-               [cfg.dt*Ki,0,1]])
-   poles.append([st,float(soc),float(max(abs(np.linalg.eigvals(A))))])
- save_csv('local_frozen_jacobian.csv',poles,['strategy','SOC','max_abs_lambda'])
+ # Linearization at the computed PI equilibrium (Tc=Tref); see local_equilibrium_jacobian()
+ poles=local_equilibrium_jacobian(cfg)
+ save_csv('local_frozen_jacobian.csv',poles,JACOBIAN_HEADERS)
  make_figures(summary,traces)
  # Consistency tests (not empirical validation)
  checks={
   'cases':len(summary),'results_complete':all(d['status']=='DONE' for d in summary),
   'SOH_finite':all(np.isfinite(row[2]) for row in lifes),
   'SOC_terminal_ok':all(abs(d['SOC_end']-cfg.soc_target)<1.e-9 for d in summary),
+  # NOTE: algebraic identity of the Euler update -> guards code consistency, NOT physics validation.
   'energy_balance_residual_max_J':max(d['energy_balance_residual_J'] for d in summary),
+  # Real numerical check: explicit Euler dt=5 s vs dt=1 s (35 C).
+  'dt_convergence_35C_dTmax_K':{s:abs(run_session(cfg,s,35.,False)['Tmax_C']-run_session(replace(cfg,dt=1.),s,35.,False)['Tmax_C']) for s in ('PI','GS_SAFE','GS_LIFE')},
+  'equilibrium_feasible':{f'{int(Ta)}C_{int(I)}A':any(r[6] for r in poles if r[2]==I and r[3]==Ta) for Ta in (15.,25.,35.) for I in (120.,210.,300.)},
+  'equilibrium_feasible_all_stable':all(r[7]<1 for r in poles if r[6]),
   'temperature_limit_safes_35':{s:next(d for d in summary if d['strategy']==s and d['ambient_C']==35)['Tmax_C']<=cfg.Tlim for s in ('PI_SAFE','GS_SAFE','GS_LIFE')},
   'n_robustness':len(robustness),'PI_GS_35_RMSE':{s:next(d for d in summary if d['strategy']==s and d['ambient_C']==35)['RMSE_error_K'] for s in ('PI','GS')}
  }

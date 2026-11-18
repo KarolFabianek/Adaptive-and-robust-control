@@ -47,18 +47,19 @@ fprintf(' 7 obliczenia    24 scenariusze + SOH + 162 niepewnosci MATLAB\n');
 fprintf(' 8 calosc        Testy + obliczenia + zgodnosc + wykresy\n');
 fprintf(' 9 wyniki        Tabela wynikow MATLAB\n');
 fprintf('10 porownanie    PI / GS / SAFE / LIFE przy 35 C, MATLAB\n');
-fprintf('11 nastawy       Kp i Ki wzgledem SOC\n');
+fprintf('11 nastawy       Kp i Ki wzgledem Ts-Tcool (Gain Scheduling)\n');
 fprintf('12 przebieg      15 probek sygnalow GS_SAFE 35 C\n');
 fprintf('13 energia       Cieplo i pomocnicza energia chlodzenia\n');
 fprintf('14 soh           Prognoza modelowa SOH na 10 lat\n');
 fprintf('15 odpornosc     162 testy niepewnosci parametrow\n');
-fprintf('16 stabilnosc    Przyblizone lokalne Jacobiany\n');
+fprintf('16 stabilnosc    Jakobiany w punktach rownowagi PI (+ osiagalnosc Tref)\n');
 fprintf('17 wykresy       Wykresy z danych MATLAB\n');
 fprintf('18 simulink      Simulink R2025b: generacja + symulacja + kontrola\n');
 fprintf('19 nasa          NASA B0005: rzeczywiste dane (w paczce)\n');
 fprintf('20 zgodnosc      Porownanie wynikow MATLAB z Python\n');
 fprintf('21 raport        Pokaz katalogi wygenerowanych plikow\n');
 fprintf('22 cel80         10 lat: analiza warunkow spelnienia SOH>=80%%\n');
+fprintf('23 gcs           Wrazliwosc na przewodnosc rdzen-powierzchnia Gcs\n');
 fprintf(' 0 koniec\n');
 fprintf('Wpisanie 7/8 ponownie tworzy pliki *_matlab.csv. Nie rusza wynikow Python.\n');
 end
@@ -108,13 +109,15 @@ elseif any(strcmp(cmd,{'9','wyniki'}))
 elseif any(strcmp(cmd,{'10','porownanie'}))
     porownaj(data(root,'sessions_summary_matlab.csv'));
 elseif any(strcmp(cmd,{'11','nastawy'}))
-    c=btms_cfg(); soc=[.20;.35;.50;.65;.80];
-    kp1=zeros(size(soc));ki1=kp1;kp2=kp1;ki2=kp1;
-    for i=1:numel(soc)
-       [kp1(i),ki1(i)]=btms_gains(c,soc(i),'PI');
-       [kp2(i),ki2(i)]=btms_gains(c,soc(i),'GS');
+    c=btms_cfg(); rho=[4;6;8;10;12;14;17;20];
+    kp1=zeros(size(rho));ki1=kp1;kp2=kp1;ki2=kp1;
+    for i=1:numel(rho)
+       [kp1(i),ki1(i)]=btms_gains(c,'PI',c.Tcool+rho(i));
+       [kp2(i),ki2(i)]=btms_gains(c,'GS',c.Tcool+rho(i));
     end
-    disp(table(soc,kp1,ki1,kp2,ki2,'VariableNames',{'SOC','Kp_PI','Ki_PI','Kp_GS','Ki_GS'}));
+    disp(table(rho,kp1,ki1,kp2,ki2,'VariableNames',{'Ts_minus_Tcool_K','Kp_PI','Ki_PI','Kp_GS','Ki_GS'}));
+    fprintf('GS: Kp,Ki = PI * clip(%g/(Ts-Tcool), %g, %g); punkt projektowy Ts-Tcool = %g K.\n', ...
+        c.gs_rho0,c.gs_smin,c.gs_smax,c.gs_rho0);
 elseif any(strcmp(cmd,{'12','przebieg'}))
     T=data(root,'session_35C_GS_SAFE_matlab.csv');
     idx=unique(round(linspace(1,height(T),min(15,height(T)))));
@@ -125,6 +128,8 @@ elseif any(strcmp(cmd,{'13','energia'}))
 elseif any(strcmp(cmd,{'14','soh'}))
     fprintf('SOH po 10 latach: wariant scenariuszowy, brak walidacji NASA.\n');
     disp(data(root,'life_summary_matlab.csv'));
+    fprintf('SOH_10y_pct: postoj przy 78%% SOC dla wszystkich strategii (porownanie samego ladowania).\n');
+    fprintf('SOH_10y_park050_pct: ta sama strategia + polityka postoju przy 50%% SOC.\n');
 elseif any(strcmp(cmd,{'15','odpornosc'}))
     T=data(root,'robustness_35C_matlab.csv');
     fprintf('Liczba przypadkow: %d; najwieksze Tmax = %.2f C; przypadki >= 40 C: %d\n',...
@@ -133,7 +138,8 @@ elseif any(strcmp(cmd,{'15','odpornosc'}))
     fprintf('To test wrazliwosci, a nie formalna gwarancja odpornosci.\n');
 elseif any(strcmp(cmd,{'16','stabilnosc'}))
     disp(data(root,'local_frozen_jacobian_matlab.csv'));
-    fprintf('Lokalne przyblizenie w zamrozonych punktach; bez dowodu globalnego.\n');
+    fprintf('Liniaryzacja w wyznaczonym punkcie rownowagi (Tc=Tref); bez dowodu globalnego.\n');
+    fprintf('feasible=0: przy tym pradzie i Ta rownowaga Tc=Tref nie istnieje - petla musi sie nasycic.\n');
 elseif any(strcmp(cmd,{'17','wykresy'}))
     if ~isfile(fullfile(root,'results','session_35C_PI_matlab.csv'))
         error('Najpierw BTMS_MENU(''obliczenia'') lub BTMS_MENU(''calosc'').');
@@ -166,6 +172,8 @@ elseif any(strcmp(cmd,{'20','zgodnosc'}))
     btms_compare_reference();
 elseif any(strcmp(cmd,{'22','cel80','80','goal80'}))
     btms_goal80();
+elseif any(strcmp(cmd,{'23','gcs','wrazliwosc'}))
+    btms_sensitivity_gcs();
 elseif any(strcmp(cmd,{'21','raport'}))
     fprintf('Wyniki MATLAB: %s\n',fullfile(root,'results'));
     fprintf('Wykresy MATLAB: %s\n',fullfile(root,'figures'));

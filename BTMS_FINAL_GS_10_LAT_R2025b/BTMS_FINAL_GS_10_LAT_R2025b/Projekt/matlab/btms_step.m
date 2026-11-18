@@ -15,7 +15,7 @@ if strcmp(strategy,'GS_LIFE'), Icap=210; else, Icap=c.I_max; end
 I=max(0,min([Iprof,Itherm,Icap,(c.soc_target-soc)*c.Qah*3600/c.dt]));
 R=c.Rn*c.R_scale*clamp(1+.2*(.5-soc)+.002*(25-Tc),.7,1.4);
 Qgen=I^2*R;
-[Kp,Ki]=btms_gains(c,soc,strategy);
+[Kp,Ki]=btms_gains(c,strategy,Ts);
 if any(strcmp(strategy,{'PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'}))
     FF=c.ff_gain*Qgen/c.Tmax_cool;
 else

@@ -1,4 +1,5 @@
 """Optional NASA PCoE *real-data* 70/30 baseline validation, not EV pack validation.
+Compares Q=a+b*sqrt(N) with Q=a+b*N and a persistence baseline (chronological split).
 Usage: python python/nasa_validate.py nasa_data/B0005.mat
 Or CSV with columns cycle,capacity_Ah; no fake measurements are generated.
 """
@@ -45,15 +46,28 @@ def validate(path):
  good=np.isfinite(cycles)&np.isfinite(capacity)&(capacity>0)
  cycles,capacity=cycles[good],capacity[good];idx=np.argsort(cycles);cycles=cycles[idx];capacity=capacity[idx]
  if len(cycles)<15:raise ValueError('Wymagane co najmniej 15 prawdziwych cykli')
- cut=int(.7*len(cycles));x=np.sqrt(cycles-cycles.min()+1)
- X=np.column_stack([np.ones(len(x)),x]);b=np.linalg.lstsq(X[:cut],capacity[:cut],rcond=None)[0]
- predicted=X@b
- pd.DataFrame({'discharge_index':cycles.astype(int), 'capacity_Ah':capacity, 'capacity_fit_Ah':predicted}).to_csv(ROOT/'results'/'nasa_B0005_discharge_python.csv',index=False)
- train=float(np.sqrt(np.mean((capacity[:cut]-predicted[:cut])**2)))
- test=float(np.sqrt(np.mean((capacity[cut:]-predicted[cut:])**2)))
- out=ROOT/'results'/'nasa_validation_python.csv';pd.DataFrame([{'source':Path(path).name,'n_cycles':len(x),'train_n':cut,'RMSE_train_Ah':train,'RMSE_test_Ah':test,'C_first_Ah':capacity[0],'C_last_Ah':capacity[-1]}]).to_csv(out,index=False)
- plt.figure(figsize=(9.5,5.1),facecolor='white');plt.plot(cycles,capacity,'o',ms=3,label='Prawdziwe dane NASA');plt.plot(cycles,predicted,'-',label='Dopasowanie Q=a+b sqrt(N)');plt.axvline(cycles[cut-1],color='grey',ls='--',label='Granica 70/30');plt.grid(alpha=.2);plt.xlabel('Cykl rozładowania');plt.ylabel('Pojemność [Ah]');plt.legend();plt.tight_layout();plt.savefig(ROOT/'figures'/'08_nasa_fit.png',dpi=170)
- print(f'NASA test N={len(x)} RMSE_test={test:.4f} Ah; rzeczywisty plik={path}')
+ cut=int(.7*len(cycles));x=np.sqrt(cycles-cycles.min()+1);n=cycles-cycles.min()+1
+ rmse=lambda a,b: float(np.sqrt(np.mean((a-b)**2)))
+ def fit(X):
+  b=np.linalg.lstsq(X[:cut],capacity[:cut],rcond=None)[0]; return X@b
+ # Model 1 (original): Q=a+b*sqrt(N). Model 2 (added after review): Q=a+b*N.
+ # Baseline: persistence = last training value. A model worse than persistence has no predictive value.
+ predicted=fit(np.column_stack([np.ones(len(x)),x]))
+ predicted_lin=fit(np.column_stack([np.ones(len(n)),n]))
+ persistence=np.full(len(capacity)-cut,capacity[cut-1])
+ pd.DataFrame({'discharge_index':cycles.astype(int), 'capacity_Ah':capacity, 'capacity_fit_Ah':predicted,
+  'capacity_fit_lin_Ah':predicted_lin}).to_csv(ROOT/'results'/'nasa_B0005_discharge_python.csv',index=False)
+ train=rmse(capacity[:cut],predicted[:cut]); test=rmse(capacity[cut:],predicted[cut:])
+ train_lin=rmse(capacity[:cut],predicted_lin[:cut]); test_lin=rmse(capacity[cut:],predicted_lin[cut:])
+ test_pers=rmse(capacity[cut:],persistence)
+ out=ROOT/'results'/'nasa_validation_python.csv';pd.DataFrame([{'source':Path(path).name,'n_cycles':len(x),'train_n':cut,
+  'RMSE_train_Ah':train,'RMSE_test_Ah':test,'RMSE_train_lin_Ah':train_lin,'RMSE_test_lin_Ah':test_lin,
+  'RMSE_test_persistence_Ah':test_pers,'C_first_Ah':capacity[0],'C_last_Ah':capacity[-1]}]).to_csv(out,index=False)
+ plt.figure(figsize=(9.5,5.1),facecolor='white');plt.plot(cycles,capacity,'o',ms=3,label='Prawdziwe dane NASA')
+ plt.plot(cycles,predicted,'-',label=f'Q=a+b·√N (RMSE test {test:.3f} Ah)')
+ plt.plot(cycles,predicted_lin,'-',label=f'Q=a+b·N (RMSE test {test_lin:.3f} Ah)')
+ plt.axvline(cycles[cut-1],color='grey',ls='--',label='Granica 70/30');plt.grid(alpha=.2);plt.xlabel('Cykl rozładowania');plt.ylabel('Pojemność [Ah]');plt.legend();plt.tight_layout();plt.savefig(ROOT/'figures'/'08_nasa_fit.png',dpi=170)
+ print(f'NASA test N={len(x)} RMSE_test sqrt={test:.4f} Ah, liniowy={test_lin:.4f} Ah, persystencja={test_pers:.4f} Ah; plik={path}')
  return test
 
 if __name__=='__main__':

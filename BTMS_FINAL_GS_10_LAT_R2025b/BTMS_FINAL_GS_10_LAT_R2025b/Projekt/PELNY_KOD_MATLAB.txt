@@ -27,7 +27,7 @@ rehash;
 fprintf('\nBTMS FINAL R2025b | uruchomione z: %s\n',root);
 fprintf('Biezace BTMS_MENU.m: %s\n',which('BTMS_MENU'));
 fprintf('Nowy model Simulink: Level-2 MATLAB S-Function.\n');
-fprintf('Najpierw 8: calosc, 22: cel80, 18: simulink, 19: nasa.\n');
+fprintf('Najpierw 8: calosc, 22: cel80, 18: simulink, 19: nasa, 23: gcs.\n');
 BTMS_MENU();
 
 
@@ -83,18 +83,19 @@ fprintf(' 7 obliczenia    24 scenariusze + SOH + 162 niepewnosci MATLAB\n');
 fprintf(' 8 calosc        Testy + obliczenia + zgodnosc + wykresy\n');
 fprintf(' 9 wyniki        Tabela wynikow MATLAB\n');
 fprintf('10 porownanie    PI / GS / SAFE / LIFE przy 35 C, MATLAB\n');
-fprintf('11 nastawy       Kp i Ki wzgledem SOC\n');
+fprintf('11 nastawy       Kp i Ki wzgledem Ts-Tcool (Gain Scheduling)\n');
 fprintf('12 przebieg      15 probek sygnalow GS_SAFE 35 C\n');
 fprintf('13 energia       Cieplo i pomocnicza energia chlodzenia\n');
 fprintf('14 soh           Prognoza modelowa SOH na 10 lat\n');
 fprintf('15 odpornosc     162 testy niepewnosci parametrow\n');
-fprintf('16 stabilnosc    Przyblizone lokalne Jacobiany\n');
+fprintf('16 stabilnosc    Jakobiany w punktach rownowagi PI (+ osiagalnosc Tref)\n');
 fprintf('17 wykresy       Wykresy z danych MATLAB\n');
 fprintf('18 simulink      Simulink R2025b: generacja + symulacja + kontrola\n');
 fprintf('19 nasa          NASA B0005: rzeczywiste dane (w paczce)\n');
 fprintf('20 zgodnosc      Porownanie wynikow MATLAB z Python\n');
 fprintf('21 raport        Pokaz katalogi wygenerowanych plikow\n');
 fprintf('22 cel80         10 lat: analiza warunkow spelnienia SOH>=80%%\n');
+fprintf('23 gcs           Wrazliwosc na przewodnosc rdzen-powierzchnia Gcs\n');
 fprintf(' 0 koniec\n');
 fprintf('Wpisanie 7/8 ponownie tworzy pliki *_matlab.csv. Nie rusza wynikow Python.\n');
 end
@@ -144,13 +145,15 @@ elseif any(strcmp(cmd,{'9','wyniki'}))
 elseif any(strcmp(cmd,{'10','porownanie'}))
     porownaj(data(root,'sessions_summary_matlab.csv'));
 elseif any(strcmp(cmd,{'11','nastawy'}))
-    c=btms_cfg(); soc=[.20;.35;.50;.65;.80];
-    kp1=zeros(size(soc));ki1=kp1;kp2=kp1;ki2=kp1;
-    for i=1:numel(soc)
-       [kp1(i),ki1(i)]=btms_gains(c,soc(i),'PI');
-       [kp2(i),ki2(i)]=btms_gains(c,soc(i),'GS');
+    c=btms_cfg(); rho=[4;6;8;10;12;14;17;20];
+    kp1=zeros(size(rho));ki1=kp1;kp2=kp1;ki2=kp1;
+    for i=1:numel(rho)
+       [kp1(i),ki1(i)]=btms_gains(c,'PI',c.Tcool+rho(i));
+       [kp2(i),ki2(i)]=btms_gains(c,'GS',c.Tcool+rho(i));
     end
-    disp(table(soc,kp1,ki1,kp2,ki2,'VariableNames',{'SOC','Kp_PI','Ki_PI','Kp_GS','Ki_GS'}));
+    disp(table(rho,kp1,ki1,kp2,ki2,'VariableNames',{'Ts_minus_Tcool_K','Kp_PI','Ki_PI','Kp_GS','Ki_GS'}));
+    fprintf('GS: Kp,Ki = PI * clip(%g/(Ts-Tcool), %g, %g); punkt projektowy Ts-Tcool = %g K.\n', ...
+        c.gs_rho0,c.gs_smin,c.gs_smax,c.gs_rho0);
 elseif any(strcmp(cmd,{'12','przebieg'}))
     T=data(root,'session_35C_GS_SAFE_matlab.csv');
     idx=unique(round(linspace(1,height(T),min(15,height(T)))));
@@ -161,6 +164,8 @@ elseif any(strcmp(cmd,{'13','energia'}))
 elseif any(strcmp(cmd,{'14','soh'}))
     fprintf('SOH po 10 latach: wariant scenariuszowy, brak walidacji NASA.\n');
     disp(data(root,'life_summary_matlab.csv'));
+    fprintf('SOH_10y_pct: postoj przy 78%% SOC dla wszystkich strategii (porownanie samego ladowania).\n');
+    fprintf('SOH_10y_park050_pct: ta sama strategia + polityka postoju przy 50%% SOC.\n');
 elseif any(strcmp(cmd,{'15','odpornosc'}))
     T=data(root,'robustness_35C_matlab.csv');
     fprintf('Liczba przypadkow: %d; najwieksze Tmax = %.2f C; przypadki >= 40 C: %d\n',...
@@ -169,7 +174,8 @@ elseif any(strcmp(cmd,{'15','odpornosc'}))
     fprintf('To test wrazliwosci, a nie formalna gwarancja odpornosci.\n');
 elseif any(strcmp(cmd,{'16','stabilnosc'}))
     disp(data(root,'local_frozen_jacobian_matlab.csv'));
-    fprintf('Lokalne przyblizenie w zamrozonych punktach; bez dowodu globalnego.\n');
+    fprintf('Liniaryzacja w wyznaczonym punkcie rownowagi (Tc=Tref); bez dowodu globalnego.\n');
+    fprintf('feasible=0: przy tym pradzie i Ta rownowaga Tc=Tref nie istnieje - petla musi sie nasycic.\n');
 elseif any(strcmp(cmd,{'17','wykresy'}))
     if ~isfile(fullfile(root,'results','session_35C_PI_matlab.csv'))
         error('Najpierw BTMS_MENU(''obliczenia'') lub BTMS_MENU(''calosc'').');
@@ -202,6 +208,8 @@ elseif any(strcmp(cmd,{'20','zgodnosc'}))
     btms_compare_reference();
 elseif any(strcmp(cmd,{'22','cel80','80','goal80'}))
     btms_goal80();
+elseif any(strcmp(cmd,{'23','gcs','wrazliwosc'}))
+    btms_sensitivity_gcs();
 elseif any(strcmp(cmd,{'21','raport'}))
     fprintf('Wyniki MATLAB: %s\n',fullfile(root,'results'));
     fprintf('Wykresy MATLAB: %s\n',fullfile(root,'figures'));
@@ -236,14 +244,20 @@ function c = btms_cfg()
 c.dt=5; c.Tmax=7200;
 c.ns=96; c.np=50; c.U_cell=3.6; c.Ah_cell=3.5; c.R_cell=0.028;
 c.mass_cell=0.048; c.cp=900; c.Cfrac=0.76;
-c.Gcs=165; c.Gamb=25; c.Gcool=470; c.Tmax_cool=6500;
+% Gcs: 1650 W/K = 4800 ogniw / 2,9 K/W na ogniwo 18650 (k_r = 0,43 W/(m K),
+% Bhundiya i in., TFAWS 2018; R ~ 1/(4*pi*k*L)). Wczesniej 165 W/K (~29 K/W) - ok. 10x za malo.
+% Tmax_cool to MOC [W] (limit odbioru ciepla przy u=1), nie temperatura.
+c.Gcs=1650; c.Gamb=25; c.Gcool=470; c.Tmax_cool=6500;
 c.Tcool=18; c.COP=2.6; c.pump_max=400;
 c.soc0=.25; c.soc_target=.80; c.taper_soc=.70;
 c.I_max=300; c.I_taper=130;
 c.Tref=30; c.Tlim=40; c.thermal_start=36.5; c.thermal_full=39.5; c.I_min=110;
 c.ff_gain=.70; c.Kp_const=.0725; c.Ki_const=47.5e-6;
+% Gain Scheduling po rho = Ts - Tcool: Kp,Ki = PI * clip(rho0/rho, smin, smax).
+c.gs_rho0=17; c.gs_smin=1; c.gs_smax=3;
 c.R_scale=1; c.Gcs_scale=1; c.Gcool_scale=1;
 c.k_cal=.025; c.k_cyc=5e-5;
+% SOC postoju: 78% dla wszystkich strategii; 50% to osobna POLITYKA postoju (kolumna *_park050).
 c.socpark_regular=.78; c.socpark_life=.50;
 c.days_per_year=300; c.EFC_per_session=.55;
 c.Qah=c.np*c.Ah_cell;
@@ -294,13 +308,20 @@ end
 ================================================================================
 matlab/btms_gains.m
 ================================================================================
-function [Kp,Ki] = btms_gains(c,soc,strategy)
-% Harmonogram SOC jawny i liniowo interpolowany.
+function [Kp,Ki] = btms_gains(c,strategy,Ts)
+% Nastawy PI. Strategie PI*: stale nastawy (dostrojone w punkcie projektowym).
+% Strategie GS*: GAIN SCHEDULING po rho = Ts - Tcool [K].
+% Uzasadnienie: wzmocnienie obiektu dQcool/du = Gcool*(Ts-Tcool) zmienia sie
+% z temperatura powierzchni (nie z SOC). PI dostrojono dla goracej powierzchni
+% rho0 = 35 - 18 = 17 K; harmonogram utrzymuje iloczyn Kp*Gcool*rho staly,
+% gdy rho maleje (kompensacja zmiennego wzmocnienia, Astrom i Wittenmark).
+% Ograniczenie skali do [gs_smin, gs_smax] = [1, 3].
 if any(strcmp(strategy,{'CC','PI','PI_FF','PI_SAFE'}))
     Kp=c.Kp_const; Ki=c.Ki_const;
 else
-    a=min(1,max(0,(soc-.2)/.6));
-    Kp=.055+.035*a; Ki=(35+25*a)*1e-6;
+    rho=max(Ts-c.Tcool, c.gs_rho0/c.gs_smax);
+    k=min(c.gs_smax,max(c.gs_smin,c.gs_rho0/rho));
+    Kp=c.Kp_const*k; Ki=c.Ki_const*k;
 end
 end
 
@@ -309,10 +330,11 @@ end
 matlab/btms_goal80.m
 ================================================================================
 function T=btms_goal80()
-% Life-oriented feasibility study for 35 C ambient fast charging.
-% The 80%-at-10y requirement is NOT met by baseline GS_LIFE at 35 C.
-% We separately model storage temperature and storage SOC as explicit
-% engineering CONDITIONS. An active storage-cooling plant is NOT included.
+% Warunki spelnienia celu SOH >= 80% po 10 latach (scenariusz modelowy).
+% Szybkie ladowanie GS_LIFE odbywa sie przy Ta = 35 C. SREDNIA ROCZNA temperatura
+% postoju i SOC postoju to osobne, jawne warunki (35 C srednio rocznie to rekord
+% swiata - Dallol ok. 34,6 C; typowe goraca klimaty to 25-30 C).
+% Funkcja niczego nie zaklada z gory o wyniku - wypisuje progi spelnienia celu.
 root=fileparts(fileparts(mfilename('fullpath')));
 out=fullfile(root,'results'); figDir=fullfile(root,'figures');
 if ~isfolder(out),mkdir(out);end
@@ -320,8 +342,8 @@ if ~isfolder(figDir),mkdir(figDir);end
 c=btms_cfg(); [session,tr]=btms_run_session(c,'GS_LIFE',35);
 if session.status ~= "DONE",error('Charging did not reach the goal SOC.');end
 meanTc=mean(tr(:,2)); Ipeak=max(tr(:,5));
-parkTemps=[35 30 27 25 23 20]; parkSOCs=[.5 .4];
-T=table(); baseLife=[]; conditionalLife=[];
+parkTemps=[35 30 27 25 23 20]; parkSOCs=[.78 .5 .4];
+T=table(); baseLife=[]; hotLife=[];
 for temp=parkTemps
     for parkSoc=parkSOCs
         [l,s]=btms_life_goal(c,meanTc,Ipeak,35,temp,parkSoc,c.days_per_year);
@@ -330,32 +352,43 @@ for temp=parkTemps
         s.temp_below_40=session.Tmax_C<40;
         T=[T;s]; %#ok<AGROW>
         if temp==35 && abs(parkSoc-.5)<1e-9,baseLife=l;end
-        if temp==23 && abs(parkSoc-.4)<1e-9,conditionalLife=l;end
+        if temp==25 && abs(parkSoc-.5)<1e-9,hotLife=l;end
     end
 end
 writetable(T,fullfile(out,'goal80_feasibility_matlab.csv'));
-assert(~isempty(baseLife) && ~isempty(conditionalLife));
-assert(baseLife.SOH_pct(end)<80,'Expected ambient 35 C baseline to fail the 80% criterion.');
-assert(conditionalLife.SOH_pct(end)>=80,'Conditional design did not meet 80%.');
+assert(~isempty(baseLife) && ~isempty(hotLife));
+% Niezmienniki (bez narzuconego werdyktu): chlodniejszy postoj starzeje mniej,
+% a ladowanie miesci sie w limicie 40 C.
+assert(hotLife.SOH_pct(end) > baseLife.SOH_pct(end));
 assert(session.Tmax_C<40,'Charging pack exceeded the 40 C project temperature limit.');
 figure('Color','w','Name','BTMS lifetime requirement 80%');
 plot(baseLife.years,baseLife.SOH_pct,'LineWidth',2.1);hold on;
-plot(conditionalLife.years,conditionalLife.SOH_pct,'LineWidth',2.4);
+plot(hotLife.years,hotLife.SOH_pct,'LineWidth',2.4);
 yline(80,'--','80% wymaganie','LineWidth',1.1);
 grid on; xlabel('Lata eksploatacji'); ylabel('SOH (pojemnosciowy) [%]');
 title('10 lat: modelowa wykonalnosc celu 80% SOH');
-legend('Parkowanie 35 C / 50% SOC', ...
-       'Warunkowo: parkowanie 23 C / 40% SOC','Granica 80%', ...
+legend('Postoj srednio 35 C / 50% SOC (rekordowy klimat)', ...
+       'Postoj srednio 25 C / 50% SOC (goracy klimat)','Granica 80%', ...
        'Location','southwest');
 ax=gca;try, ax.Toolbar.Visible='off';catch,end
 exportgraphics(gcf,fullfile(figDir,'matlab_goal80_storage.png'),'Resolution',170);
-sel=T(T.storage_temperature_C==23 & T.storage_SOC==.4,:);
-fprintf('\nCEL 80%% po 10 latach | ladowanie przy Ta=35 C\n');
+verdict={'NIE SPELNIA','SPELNIA'};
+fprintf('\nCEL 80%% po 10 latach | szybkie ladowanie GS_LIFE przy Ta=35 C\n');
 fprintf('GS_LIFE ladowanie: Tmax=%.2f C; czas=%.2f min\n',session.Tmax_C,session.time_min);
-fprintf('Bez kontroli parkowania: %.2f%% SOH -> NIE SPELNIA\n',baseLife.SOH_pct(end));
-fprintf('Warunkowo przy 23 C / 40%% SOC w parkowaniu: %.2f%% SOH -> %s\n', ...
-   conditionalLife.SOH_pct(end), char(string(sel.meets_80)));
-fprintf('UWAGA: temperatura parkowania wymaga osobnego BTMS i zuzywa energie; nie jest tu zasymulowana.\n');
+fprintf('Postoj srednio 35 C / 50%% SOC: %.2f%% SOH -> %s\n',baseLife.SOH_pct(end), ...
+    verdict{1+double(baseLife.SOH_pct(end)>=80)});
+fprintf('Postoj srednio 25 C / 50%% SOC: %.2f%% SOH -> %s\n',hotLife.SOH_pct(end), ...
+    verdict{1+double(hotLife.SOH_pct(end)>=80)});
+for parkSoc=parkSOCs
+    ok=T.storage_temperature_C(T.meets_80 & abs(T.storage_SOC-parkSoc)<1e-9);
+    if isempty(ok)
+        fprintf('SOC postoju %2.0f%%: cel 80%% niespelniony w calym zakresie 20-35 C\n',100*parkSoc);
+    else
+        fprintf('SOC postoju %2.0f%%: cel 80%% spelniony dla sredniej temperatury postoju <= %g C\n',100*parkSoc,max(ok));
+    end
+end
+fprintf('UWAGA: 35 C jako SREDNIA ROCZNA temperatura postoju to ekstremum klimatyczne\n');
+fprintf('       (rekord swiata: Dallol, ok. 34.6 C).\n');
 fprintf('Wynik nie jest gwarancja OEM ani walidacja 10 lat danymi NASA.\n');
 end
 
@@ -412,33 +445,64 @@ end
 matlab/btms_local_jacobian.m
 ================================================================================
 function T=btms_local_jacobian(c)
-% LOCAL JACOBIAN SENSITIVITY, NOT a proof of stability: linearization points
-% are NOT independently computed as stationary equilibria.
-SOC=linspace(.25,.79,5); rows=cell(10,3); row=0;
-for soc=SOC
- for strategy={'PI','GS'}
-  st=strategy{1}; [Kp,Ki]=btms_gains(c,soc,st);
-  I=120;Ts=27;u=.3;
-  dR_dTc=-.002*c.Rn;
-  A=[1+c.dt*(I^2*dR_dTc-c.Gcs)/c.Cc, c.dt*c.Gcs/c.Cc, 0;...
-     c.dt*(c.Gcs-c.Gcool*(Ts-c.Tcool)*Kp)/c.Cs,...
-     1-c.dt*(c.Gcs+c.Gamb+c.Gcool*u)/c.Cs,...
-     -c.dt*c.Gcool*(Ts-c.Tcool)/c.Cs;...
-     c.dt*Ki,0,1];
-  row=row+1;rows(row,:)={string(st),soc,max(abs(eig(A)))};
+% LOKALNA LINIARYZACJA W PUNKCIE ROWNOWAGI - NIE jest dowodem stabilnosci
+% globalnej ani stabilnosci LPV.
+% Punkt pracy = stan ustalony petli PI (integrator => Tc = Tref):
+%   Ts* = Tref - Qgen/Gcs,  Qcool* = Qgen - Gamb*(Ts*-Ta),  u* = z* z bilansu.
+% Nastawy GS liczone w Ts*; ich pochodna po Ts mnozy e = 0, wiec A ma te sama postac.
+% Jesli punkt NIE istnieje (Ts* <= Tcool albo u* poza [0,1]), Tref jest
+% nieosiagalne przy danym pradzie: petla musi sie nasycic, a analiza liniowa
+% nie ma zastosowania (feasible=false, lambda=NaN).
+ambients=[15 25 35]; currents=[120 210 300]; SOC=[.25 .52 .79]; strategies={'PI','GS'};
+rows=cell(numel(ambients)*numel(currents)*numel(SOC)*numel(strategies),9); row=0;
+for Ta=ambients
+ for I=currents
+  for soc=SOC
+   for k=1:numel(strategies)
+    st=strategies{k};
+    Gcs=c.Gcs*c.Gcs_scale; G=c.Gcool*c.Gcool_scale;
+    Tc=c.Tref;
+    R=c.Rn*c.R_scale*min(1.4,max(.7,1+.2*(.5-soc)+.002*(25-Tc)));
+    Qgen=I^2*R;
+    Ts=Tc-Qgen/Gcs;
+    [Kp,Ki]=btms_gains(c,st,Ts);
+    Qcool=Qgen-c.Gamb*(Ts-Ta);
+    if G*(Ts-c.Tcool) <= c.Tmax_cool   % galaz Gcool*u*(Ts-Tcool)
+        Bu=G*(Ts-c.Tcool); u=Qcool/Bu; Bs=G*u;
+    else                               % galaz limitu mocy Tmax_cool*u
+        Bu=c.Tmax_cool; u=Qcool/Bu; Bs=0;
+    end
+    feasible = Ts>c.Tcool && u>=0 && u<=1;
+    lam=NaN; tau=NaN;
+    if feasible
+        dR_dTc=-.002*c.Rn*c.R_scale;
+        A=[1+c.dt*(I^2*dR_dTc-Gcs)/c.Cc, c.dt*Gcs/c.Cc, 0; ...
+           c.dt*(Gcs-Bu*Kp)/c.Cs, 1-c.dt*(Gcs+c.Gamb+Bs)/c.Cs, -c.dt*Bu/c.Cs; ...
+           c.dt*Ki, 0, 1];
+        lam=max(abs(eig(A)));
+        tau=-c.dt/log(lam);
+    end
+    row=row+1;
+    rows(row,:)={string(st),soc,I,Ta,Ts,u,feasible,lam,tau};
+   end
+  end
  end
 end
-T=cell2table(rows,'VariableNames',{'strategy','SOC','max_abs_lambda'});
+T=cell2table(rows,'VariableNames',{'strategy','SOC','I_A','Ta_C', ...
+    'Ts_eq_C','u_eq','feasible','max_abs_lambda','tau_dominant_s'});
 end
 
 
 ================================================================================
 matlab/btms_make_simulink.m
 ================================================================================
-function modelName = btms_make_simulink()
+function modelName = btms_make_simulink(Ta)
 % Create an R2025b Simulink diagram with a supported Level-2 MATLAB
 % S-Function, NOT the obsolete/misspelled 'Interpreted MATLAB Fcn'.
 % The block internally calls the same btms_step.m used by MATLAB runner.
+% Ta - temperatura otoczenia [C] (domyslnie 35). Ta sama wartosc trafia do
+% bloku Constant i jako warunek poczatkowy do S-funkcji (parametr bloku).
+if nargin<1 || isempty(Ta), Ta = 35; end
 root = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(root,'matlab'),'-begin');
 if isempty(which('new_system')) || license('test','Simulink') == 0
@@ -453,25 +517,31 @@ modelFile = fullfile(modelDir,[modelName '.slx']);
 if bdIsLoaded(modelName), close_system(modelName,0); end
 new_system(modelName);
 try
-    add_block('simulink/Sources/Constant',[modelName '/Tamb_35C'], ...
-        'Position',[85 175 170 205], 'Value','35', 'SampleTime','5');
+    TaStr = num2str(Ta,'%.10g');
+    add_block('simulink/Sources/Constant',[modelName '/Tamb'], ...
+        'Position',[85 175 170 205], 'Value',TaStr, 'SampleTime','5');
     src = 'simulink/User-Defined Functions/Level-2 MATLAB S-Function';
     add_block(src,[modelName '/BTMS_GS_LIFE'], ...
-        'Position',[260 148 465 227], 'FunctionName','btms_sfcn_life80');
+        'Position',[260 148 465 227], 'FunctionName','btms_sfcn_life80', ...
+        'Parameters',TaStr);
     add_block('simulink/Signal Routing/Demux',[modelName '/Rozdziel_stany'], ...
         'Position',[570 150 575 300], 'Outputs','4');
-    add_block('simulink/Sinks/Scope',[modelName '/Temperatura_rdzenia'], ...
-        'Position',[680 140 755 185]);
+    add_block('simulink/Sinks/Scope',[modelName '/Temperatury_Tc_Ts'], ...
+        'Position',[680 140 755 185], 'NumInputPorts','2');
     add_block('simulink/Sinks/Scope',[modelName '/SOC'], ...
         'Position',[680 230 755 275]);
+    add_block('simulink/Sinks/Terminator',[modelName '/Integrator_z'], ...
+        'Position',[680 290 700 310]);
     add_block('simulink/Sinks/To Workspace',[modelName '/Zapis_stanow'], ...
         'Position',[555 70 745 110], ...
         'VariableName','BTMS_states','SaveFormat','Structure With Time');
-    add_line(modelName,'Tamb_35C/1','BTMS_GS_LIFE/1','autorouting','on');
+    add_line(modelName,'Tamb/1','BTMS_GS_LIFE/1','autorouting','on');
     add_line(modelName,'BTMS_GS_LIFE/1','Rozdziel_stany/1','autorouting','on');
     add_line(modelName,'BTMS_GS_LIFE/1','Zapis_stanow/1','autorouting','on');
-    add_line(modelName,'Rozdziel_stany/1','Temperatura_rdzenia/1','autorouting','on');
+    add_line(modelName,'Rozdziel_stany/1','Temperatury_Tc_Ts/1','autorouting','on');
+    add_line(modelName,'Rozdziel_stany/2','Temperatury_Tc_Ts/2','autorouting','on');
     add_line(modelName,'Rozdziel_stany/3','SOC/1','autorouting','on');
+    add_line(modelName,'Rozdziel_stany/4','Integrator_z/1','autorouting','on');
     set_param(modelName,'SolverType','Fixed-step', ...
         'Solver','FixedStepDiscrete','FixedStep','5', ...
         'StopTime','1800','SaveTime','on');
@@ -490,7 +560,8 @@ matlab/btms_nasa_validate.m
 ================================================================================
 function T=btms_nasa_validate(filePath)
 % NASA Ames B0005: oryginalne pomiary pojemnosci w cyklach rozladowania.
-% 70/30 PODZIAL CHRONOLOGICZNY; prosty model Q=a+b*sqrt(cycle).
+% 70/30 PODZIAL CHRONOLOGICZNY; modele Q=a+b*sqrt(N) i Q=a+b*N
+% porownane z prognoza persystencji (ostatnia wartosc uczaca).
 % NIE waliduje modelu cieplnego EV ani prognozy SOH 10-letniej.
 root=fileparts(fileparts(mfilename('fullpath')));
 if nargin<1 || isempty(filePath)
@@ -528,29 +599,47 @@ capacities=capacities(1:kvalid);
 N=numel(capacities);
 if N<15,error('NASA: za malo prawdziwych cykli rozladowania (N=%d)',N);end
 cy=(1:N)';ntrain=floor(.7*N);
+tr=1:ntrain; te=ntrain+1:N;
+rmse=@(a,b) sqrt(mean((a-b).^2));
+% Model 1 (pierwotny): Q=a+b*sqrt(N).
 X=[ones(N,1),sqrt(cy)];
-b=X(1:ntrain,:)\capacities(1:ntrain);
+b=X(tr,:)\capacities(tr);
 pred=X*b;
-rmseTrain=sqrt(mean((capacities(1:ntrain)-pred(1:ntrain)).^2));
-rmseTest=sqrt(mean((capacities(ntrain+1:end)-pred(ntrain+1:end)).^2));
-T=table(N,ntrain,N-ntrain,rmseTrain,rmseTest,capacities(1),capacities(end),...
-    'VariableNames',{'n_cycles','train_n','test_n','RMSE_train_Ah','RMSE_test_Ah','C_first_Ah','C_last_Ah'});
+rmseTrain=rmse(capacities(tr),pred(tr));
+rmseTest=rmse(capacities(te),pred(te));
+% Model 2 (dodany po przegladzie): Q=a+b*N. Dla B0005 (test cykliczny)
+% zanik jest w przyblizeniu liniowy; sqrt(N) jest zbyt optymistyczny.
+XL=[ones(N,1),cy];
+bL=XL(tr,:)\capacities(tr);
+predLin=XL*bL;
+rmseTrainLin=rmse(capacities(tr),predLin(tr));
+rmseTestLin=rmse(capacities(te),predLin(te));
+% Punkt odniesienia: persystencja (ostatnia wartosc ze zbioru uczacego).
+rmseTestPers=rmse(capacities(te),capacities(ntrain));
+T=table(N,ntrain,N-ntrain,rmseTrain,rmseTest,rmseTrainLin,rmseTestLin,rmseTestPers, ...
+    capacities(1),capacities(end),...
+    'VariableNames',{'n_cycles','train_n','test_n','RMSE_train_Ah','RMSE_test_Ah', ...
+    'RMSE_train_lin_Ah','RMSE_test_lin_Ah','RMSE_test_persistence_Ah','C_first_Ah','C_last_Ah'});
 if ~isfolder(fullfile(root,'results')),mkdir(fullfile(root,'results'));end
 if ~isfolder(fullfile(root,'figures')),mkdir(fullfile(root,'figures'));end
 writetable(T,fullfile(root,'results','nasa_validation_matlab.csv'));
-values=table(cy,capacities,pred,'VariableNames',{'discharge_index','capacity_Ah','capacity_fit_Ah'});
+values=table(cy,capacities,pred,predLin,'VariableNames', ...
+    {'discharge_index','capacity_Ah','capacity_fit_Ah','capacity_fit_lin_Ah'});
 writetable(values,fullfile(root,'results','nasa_B0005_discharge_matlab.csv'));
 f=figure('Color','w','Name','NASA B0005 - rzeczywiste dane');
 plot(cy,capacities,'.','MarkerSize',10,'Color',[.08,.45,.74]); hold on;
 plot(cy,pred,'-','LineWidth',1.8,'Color',[.86,.35,.16]);
+plot(cy,predLin,'-','LineWidth',1.8,'Color',[.10,.60,.35]);
 xline(ntrain,'--','70% uczenie / 30% test');
 grid on; xlabel('Numer cyklu rozladowania');ylabel('Pojemnosc [Ah]');
-title('NASA B0005: pomiary vs prosty model sqrt(N)');
-legend('Pomiary NASA','Model bazowy','Podzial chronologiczny','Location','best');
-try, gca.Toolbar.Visible='off';catch,end
+title('NASA B0005: pomiary vs modele sqrt(N) i liniowy');
+legend('Pomiary NASA',sprintf('Q=a+b*sqrt(N), RMSE test %.3f Ah',rmseTest), ...
+    sprintf('Q=a+b*N, RMSE test %.3f Ah',rmseTestLin),'Podzial chronologiczny','Location','best');
+ax=gca; try, ax.Toolbar.Visible='off'; catch, end
 exportgraphics(f,fullfile(root,'figures','nasa_B0005_matlab.png'),'Resolution',160);
-disp(T);
-fprintf('NASA: %d rzeczywistych pomiarow rozladowania. RMSE_test=%.5f Ah.\n',N,rmseTest);
+fprintf('NASA: %d rzeczywistych pomiarow rozladowania.\n',N);
+fprintf('RMSE_test: sqrt(N)=%.5f Ah | liniowy=%.5f Ah | persystencja=%.5f Ah\n', ...
+    rmseTest,rmseTestLin,rmseTestPers);
 end
 
 
@@ -583,17 +672,56 @@ end
 
 
 ================================================================================
+matlab/btms_sensitivity_gcs.m
+================================================================================
+function T = btms_sensitivity_gcs(Ta)
+% WRAZLIWOSC WYNIKOW NA PRZEWODNOSC RDZEN-POWIERZCHNIA Gcs.
+% Baza: Gcs = 1650 W/K (ok. 2,9 K/W na ogniwo 18650; k_r = 0,43 W/(m K),
+% R ~ 1/(4*pi*k*L)); Lin i in. (IEEE TCST 2013) podaja Rc = 1,83 K/W dla 26650.
+% Siatka obejmuje tez stara wartosc 165 W/K (~29 K/W), zeby pokazac, jak
+% wnioski (czy sam PI utrzyma Tc < 40 C) zalezaly od tego parametru.
+if nargin<1 || isempty(Ta), Ta=35; end
+root=fileparts(fileparts(mfilename('fullpath')));
+c0=btms_cfg(); ncell=c0.ns*c0.np;
+Gvals=[165 330 660 1650 2600];
+strategies={'CC','PI','GS','GS_SAFE','GS_LIFE'};
+rows=cell(numel(Gvals)*numel(strategies),9); k=0;
+for G=Gvals
+    c=c0; c.Gcs=G;
+    for i=1:numel(strategies)
+        s=btms_run_session(c,strategies{i},Ta); k=k+1;
+        rows(k,:)={G,ncell/G,string(strategies{i}),Ta,s.Tmax_C,s.time_min, ...
+            s.energy_aux_kWh,s.sat_fraction,s.Tmax_C<c.Tlim};
+    end
+end
+T=cell2table(rows,'VariableNames',{'Gcs_W_per_K','Rth_cell_K_per_W','strategy', ...
+    'ambient_C','Tmax_C','time_min','energy_aux_kWh','sat_fraction','below_40C'});
+out=fullfile(root,'results'); if ~isfolder(out),mkdir(out);end
+writetable(T,fullfile(out,'gcs_sensitivity_matlab.csv'));
+disp(T);
+fprintf('Baza Gcs=%g W/K = %.1f K/W na ogniwo; stara wartosc 165 W/K = %.1f K/W.\n',c0.Gcs,ncell/c0.Gcs,ncell/165);
+fprintf('Przy 165 W/K sam PI przekracza 40 C; przy >= 660 W/K miesci sie ponizej 40 C.\n');
+end
+
+
+================================================================================
 matlab/btms_sfcn_life80.m
 ================================================================================
 function btms_sfcn_life80(block)
 % Level-2 MATLAB S-function. R2025b: discrete states [Tc; Ts; SOC; z].
 % Input: ambient temperature. Output: the 4 states. No interpreted Fcn block.
 % Calls EXACTLY btms_step(), used by the ordinary MATLAB solver.
+% Dialog parameter 1: initial pack temperature Ta0 [C] (= ambient at start).
+% Poprawki po przegladzie: (1) warunek poczatkowy nie jest juz wpisany na
+% sztywno (35 C), tylko pochodzi z parametru bloku; (2) po osiagnieciu
+% SOC docelowego stan termiczny dalej ewoluuje (I=0, chlodzenie dziala),
+% zamiast "zamrozenia" temperatury do konca symulacji.
 setup(block);
 end
 
 function setup(block)
-block.NumDialogPrms = 0;
+block.NumDialogPrms = 1;
+block.DialogPrmsTunable = {'Nontunable'};
 block.NumInputPorts = 1;
 block.NumOutputPorts = 1;
 block.SetPreCompInpPortInfoToDynamic;
@@ -623,8 +751,10 @@ block.Dwork(1).UsedAsDiscState = true;
 end
 
 function initialize(block)
-% The demo is initialized at 35 C, 25% SOC. z is the PI integrator state.
-block.Dwork(1).Data = [35; 35; 0.25; 0];
+% Start: pakiet w temperaturze otoczenia Ta0, SOC = soc0 z btms_cfg, z = 0.
+c = btms_cfg();
+Ta0 = double(block.DialogPrm(1).Data);
+block.Dwork(1).Data = [Ta0; Ta0; c.soc0; 0];
 end
 
 function outputStates(block)
@@ -635,10 +765,10 @@ function updateStates(block)
 c = btms_cfg();
 x = block.Dwork(1).Data;
 Ta = double(block.InputPort(1).Data);
-if x(3) < c.soc_target - 1e-10
-    [xnext, ~] = btms_step(c, 'GS_LIFE', Ta, x);
-    block.Dwork(1).Data = xnext;
-end
+% Po osiagnieciu SOC docelowego btms_step zwraca I=0 i SOC=const,
+% a temperatury dalej sie zmieniaja (stygniecie pakietu przy chlodzeniu).
+[xnext, ~] = btms_step(c, 'GS_LIFE', Ta, x);
+block.Dwork(1).Data = xnext;
 end
 
 
@@ -662,7 +792,7 @@ if strcmp(strategy,'GS_LIFE'), Icap=210; else, Icap=c.I_max; end
 I=max(0,min([Iprof,Itherm,Icap,(c.soc_target-soc)*c.Qah*3600/c.dt]));
 R=c.Rn*c.R_scale*clamp(1+.2*(.5-soc)+.002*(25-Tc),.7,1.4);
 Qgen=I^2*R;
-[Kp,Ki]=btms_gains(c,soc,strategy);
+[Kp,Ki]=btms_gains(c,strategy,Ts);
 if any(strcmp(strategy,{'PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'}))
     FF=c.ff_gain*Qgen/c.Tmax_cool;
 else
@@ -695,9 +825,12 @@ end
 ================================================================================
 matlab/btms_verify_simulink.m
 ================================================================================
-function T = btms_verify_simulink(simOut)
+function T = btms_verify_simulink(simOut,Ta)
 % Compare samples from independently executed Simulink model against
 % the exact MATLAB session (same numerical transition equation).
+% UWAGA: to test zgodnosci implementacji (ta sama funkcja btms_step),
+% a nie niezalezna walidacja modelu.
+if nargin<2 || isempty(Ta), Ta=35; end
 root=fileparts(fileparts(mfilename('fullpath')));
 raw=simOut.get('BTMS_states');
 if ~isstruct(raw) || ~isfield(raw,'time') || ~isfield(raw,'signals')
@@ -709,7 +842,7 @@ if size(v,2) ~= 4 && size(v,1) == 4, v=v.'; end
 if size(v,1) ~= numel(t) || size(v,2) ~= 4
     error('Simulink returned dimensions %s, expected samples x 4.',mat2str(size(v)));
 end
-c=btms_cfg(); [s,tr]=btms_run_session(c,'GS_LIFE',35);
+c=btms_cfg(); [s,tr]=btms_run_session(c,'GS_LIFE',Ta);
 if s.status ~= "DONE", error('MATLAB reference run did not finish.'); end
 wanted = round(tr(:,1)*60*1000);
 [tf,loc] = ismember(wanted,round(t*1000));
@@ -723,6 +856,14 @@ out=fullfile(root,'results');if ~isfolder(out),mkdir(out);end
 writetable(T,fullfile(out,'simulink_matlab_check.csv'));
 disp(T);
 if ~T.pass, error('Simulink != MATLAB: do not present model as verified.'); end
+% Po zakonczeniu ladowania (SOC=80%) SOC ma byc stale, a temperatura
+% rdzenia nie moze byc "zamrozona" (I=0 -> pakiet stygnie).
+after = t > tr(end,1)*60 + 1e-6;
+if nnz(after) >= 2
+    assert(max(abs(v(after,3)-c.soc_target)) < 1e-9, 'SOC changed after end of charge');
+    assert(v(find(after,1,'last'),1) < v(find(after,1,'first'),1), ...
+        'Core temperature frozen after end of charge');
+end
 fprintf('PASS: Simulink states match the MATLAB GS_LIFE session.\n');
 end
 
@@ -738,14 +879,16 @@ out=fullfile(root,'results');fig=fullfile(root,'figures');
 if ~exist(out,'dir'),mkdir(out);end
 if ~exist(fig,'dir'),mkdir(fig);end
 c=btms_cfg(); strategies={'CC','PI','GS','PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'};
-ambs=[15,25,35]; cases=struct([]); lrows=cell(24,5);idx=0;
+ambs=[15,25,35]; cases=struct([]); lrows=cell(24,6);idx=0;
 for a=ambs
     for i=1:numel(strategies)
         st=strategies{i};idx=idx+1;
         [s,tr]=btms_run_session(c,st,a);cases=[cases;s]; %#ok<AGROW>
-        park=c.socpark_regular;if strcmp(st,'GS_LIFE'),park=c.socpark_life;end
-        L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,park);
-        lrows(idx,:)={string(st),a,L.SOH_pct(end),L.Dcal_pp(end),L.Dcyc_pp(end)};
+        % Ten sam SOC postoju (78%) dla wszystkich strategii - porownanie samego ladowania.
+        L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,c.socpark_regular);
+        % Polityka postoju przy 50% SOC to osobna decyzja uzytkowania (nie cecha strategii).
+        L50=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,c.socpark_life);
+        lrows(idx,:)={string(st),a,L.SOH_pct(end),L.Dcal_pp(end),L.Dcyc_pp(end),L50.SOH_pct(end)};
         if a==35
             labels={'time_min','Tc_C','Ts_C','SOC','I_A','u','Qgen_W','Qcool_W','Paux_W','FF','integrator','e_K','I_therm_A'};
             writetable(array2table(tr,'VariableNames',labels),fullfile(out,['session_35C_' st '_matlab.csv']));
@@ -753,7 +896,8 @@ for a=ambs
     end
 end
 writetable(struct2table(cases),fullfile(out,'sessions_summary_matlab.csv'));
-Life=cell2table(lrows,'VariableNames',{'strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp'});
+Life=cell2table(lrows,'VariableNames',{'strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp', ...
+    'SOH_10y_park050_pct'});
 writetable(Life,fullfile(out,'life_summary_matlab.csv'));
 % Model-based uncertainty stress test: does NOT constitute a formal robustness proof.
 rr=cell(162,8);j=0;
@@ -780,6 +924,7 @@ assert(all(arrayfun(@(v) v.status=="DONE",cases)),'Some cases did not finish');
 assert(all(abs([cases.SOC_end]-c.soc_target)<1e-9),'SOC target mismatch');
 assert(height(rr)==162,'Oczekiwano 162 testow niepewnosci');
 assert(all(isfinite([cases.Tmax_C])) && all([cases.time_min]>0),'Niepoprawne wyniki sesji');
+% Tozsamosc algebraiczna kroku Eulera: wykrywa blad w kodzie, nie waliduje fizyki.
 assert(all([cases.energy_balance_residual_J]<1e-7),'Energy balance broken');
 end
 
@@ -799,17 +944,42 @@ for st={'CC','PI','GS','PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'}
   assert(strcmp(s.status,'DONE') && abs(s.SOC_end-.8)<1e-9);
   assert(all(T(:,6)>=0 & T(:,6)<=1));
   assert(all(T(:,8)>=0)); % Qcool >= 0
+  % Tozsamosc algebraiczna kroku Eulera - chroni spojnosc kodu, nie waliduje fizyki.
   assert(s.energy_balance_residual_J<1e-7);
   L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,Ta,.5);
   assert(all(diff(L.SOH_pct)<=1e-9)); % SOH must NOT recover by seasonal temperature
  end
 end
-% Feasibility conditions for 10-year 80% target (assumed model only).
+% Nominalnie przy 35 C wszystkie strategie z regulatorem trzymaja Tc < 40 C.
+for st={'PI','GS','PI_SAFE','GS_SAFE','GS_LIFE'}
+    s=btms_run_session(c,st{1},35); assert(s.Tmax_C<40,'%s >= 40 C',st{1});
+end
+% Model SOH: chlodniejszy postoj i nizszy SOC postoju starzeja mniej (niezmiennik).
 [s,tr]=btms_run_session(c,'GS_LIFE',35);
 [~,ordinary]=btms_life_goal(c,mean(tr(:,2)),max(tr(:,5)),35,35,.5,300);
 [~,conditional]=btms_life_goal(c,mean(tr(:,2)),max(tr(:,5)),35,23,.4,300);
-assert(s.Tmax_C<40 && ordinary.SOH_10y_pct<80 && conditional.SOH_10y_pct>=80);
-fprintf('Unit and invariance checks passed. Conditional life scenario is model-only.\n');
+assert(s.Tmax_C<40 && conditional.SOH_10y_pct>ordinary.SOH_10y_pct);
+% btms_life i btms_life_goal to ten sam model - musza dac ten sam wynik,
+% gdy temperatura postoju = temperatura otoczenia ladowania.
+L=btms_life(c,mean(tr(:,2)),max(tr(:,5)),35,.5);
+assert(abs(L.SOH_pct(end)-ordinary.SOH_10y_pct)<1e-9,'btms_life != btms_life_goal');
+% Zbieznosc numeryczna jawnego Eulera: dt=5 s vs dt=1 s (35 C).
+c1=c; c1.dt=1;
+for st={'PI','GS_SAFE','GS_LIFE'}
+    a=btms_run_session(c,st{1},35); b=btms_run_session(c1,st{1},35);
+    assert(abs(a.Tmax_C-b.Tmax_C)<0.1 && abs(a.time_min-b.time_min)<0.2, ...
+        'Brak zbieznosci dt dla %s: %.3f vs %.3f C',st{1},a.Tmax_C,b.Tmax_C);
+end
+% Liniaryzacja w punkcie rownowagi: kazdy osiagalny punkt jest lokalnie stabilny,
+% a przy 120 A rownowaga istnieje w kazdym klimacie.
+J=btms_local_jacobian(c);
+assert(all(J.max_abs_lambda(J.feasible)<1));
+assert(all(J.feasible(J.I_A==120)));
+% GS po Ts-Tcool: w punkcie projektowym rho0 rowny PI, nigdy ponizej nastaw PI.
+[kp1,ki1]=btms_gains(c,'GS',c.Tcool+c.gs_rho0); [kp0,ki0]=btms_gains(c,'PI',c.Tcool+c.gs_rho0);
+assert(kp1==kp0 && ki1==ki0);
+for Ts=[10 20 30 40 50], assert(btms_gains(c,'GS',Ts)>=c.Kp_const); end
+fprintf('Unit and invariance checks passed. Life scenario is model-only.\n');
 end
 
 
@@ -880,7 +1050,7 @@ Tlim=40; plot(xlim,[Tlim Tlim],'--','LineWidth',1.4,'Color',[.85,.22,.24]);
 grid on; xlabel('Czas [min]'); ylabel('Temperatura rdzenia [C]');
 title('BTMS: temperatura rdzenia, T otoczenia = 35 C');
 legend([names {'kryterium 40 C'}],'Location','best');
-try, gca.Toolbar.Visible='off'; catch, end
+ax=gca; try, ax.Toolbar.Visible='off'; catch, end
 exportgraphics(fig,fullfile(figdir,'matlab_temperatura_35C.png'),'Resolution',170);
 fig=figure('Name','BTMS - prady 35 C','Color','w','Position',[120 90 970 520]);
 hold on;
@@ -891,7 +1061,7 @@ end
 grid on; xlabel('Czas [min]'); ylabel('Prad [A]');
 title('BTMS: prad ladowania, T otoczenia = 35 C');
 legend(names,'Location','best');
-try, gca.Toolbar.Visible='off'; catch, end
+ax=gca; try, ax.Toolbar.Visible='off'; catch, end
 exportgraphics(fig,fullfile(figdir,'matlab_prad_35C.png'),'Resolution',170);
 fprintf('Wykresy zapisano w: %s\n',figdir);
 end

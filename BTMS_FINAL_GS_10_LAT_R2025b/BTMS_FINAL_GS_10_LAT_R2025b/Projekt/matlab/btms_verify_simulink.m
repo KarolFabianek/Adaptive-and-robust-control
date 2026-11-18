@@ -1,6 +1,9 @@
-function T = btms_verify_simulink(simOut)
+function T = btms_verify_simulink(simOut,Ta)
 % Compare samples from independently executed Simulink model against
 % the exact MATLAB session (same numerical transition equation).
+% UWAGA: to test zgodnosci implementacji (ta sama funkcja btms_step),
+% a nie niezalezna walidacja modelu.
+if nargin<2 || isempty(Ta), Ta=35; end
 root=fileparts(fileparts(mfilename('fullpath')));
 raw=simOut.get('BTMS_states');
 if ~isstruct(raw) || ~isfield(raw,'time') || ~isfield(raw,'signals')
@@ -12,7 +15,7 @@ if size(v,2) ~= 4 && size(v,1) == 4, v=v.'; end
 if size(v,1) ~= numel(t) || size(v,2) ~= 4
     error('Simulink returned dimensions %s, expected samples x 4.',mat2str(size(v)));
 end
-c=btms_cfg(); [s,tr]=btms_run_session(c,'GS_LIFE',35);
+c=btms_cfg(); [s,tr]=btms_run_session(c,'GS_LIFE',Ta);
 if s.status ~= "DONE", error('MATLAB reference run did not finish.'); end
 wanted = round(tr(:,1)*60*1000);
 [tf,loc] = ismember(wanted,round(t*1000));
@@ -26,5 +29,13 @@ out=fullfile(root,'results');if ~isfolder(out),mkdir(out);end
 writetable(T,fullfile(out,'simulink_matlab_check.csv'));
 disp(T);
 if ~T.pass, error('Simulink != MATLAB: do not present model as verified.'); end
+% Po zakonczeniu ladowania (SOC=80%) SOC ma byc stale, a temperatura
+% rdzenia nie moze byc "zamrozona" (I=0 -> pakiet stygnie).
+after = t > tr(end,1)*60 + 1e-6;
+if nnz(after) >= 2
+    assert(max(abs(v(after,3)-c.soc_target)) < 1e-9, 'SOC changed after end of charge');
+    assert(v(find(after,1,'last'),1) < v(find(after,1,'first'),1), ...
+        'Core temperature frozen after end of charge');
+end
 fprintf('PASS: Simulink states match the MATLAB GS_LIFE session.\n');
 end

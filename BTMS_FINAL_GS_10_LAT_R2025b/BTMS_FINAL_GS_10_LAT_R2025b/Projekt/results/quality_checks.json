@@ -3,7 +3,24 @@
   "results_complete": true,
   "SOH_finite": true,
   "SOC_terminal_ok": true,
-  "energy_balance_residual_max_J": 1.0913936421275139e-11,
+  "energy_balance_residual_max_J": 7.275957614183426e-12,
+  "dt_convergence_35C_dTmax_K": {
+    "PI": 0.014042995652445711,
+    "GS_SAFE": 0.02768623207209231,
+    "GS_LIFE": 0.020397582437830408
+  },
+  "equilibrium_feasible": {
+    "15C_120A": true,
+    "15C_210A": true,
+    "15C_300A": true,
+    "25C_120A": true,
+    "25C_210A": true,
+    "25C_300A": false,
+    "35C_120A": true,
+    "35C_210A": true,
+    "35C_300A": false
+  },
+  "equilibrium_feasible_all_stable": true,
   "temperature_limit_safes_35": {
     "PI_SAFE": true,
     "GS_SAFE": true,
@@ -11,7 +28,7 @@
   },
   "n_robustness": 162,
   "PI_GS_35_RMSE": {
-    "PI": 14.016974996817527,
-    "GS": 14.187109685209416
+    "PI": 6.917897033736238,
+    "GS": 6.781486297417335
   }
 }

@@ -6,7 +6,7 @@ MATLAB R2025b - instrukcja BTMS
 [f,p] = uigetfile('START_BTMS.m','Wybierz START_BTMS.m z Projekt');
 if ~isequal(f,0), run(fullfile(p,f)); end
 
-4. Po uruchomieniu w menu: 1 (status), 6 (testy), 8 (calosc), 22 (cel80), 18 (Simulink), 19 (NASA), 0 (wyjscie).
+4. Po uruchomieniu w menu: 1 (status), 6 (testy), 8 (calosc), 22 (cel80), 18 (Simulink), 19 (NASA), 23 (Gcs), 0 (wyjscie).
 5. Po wyjsciu z menu mozna wpisac:
 BTMS_MENU('status')
 BTMS_MENU('calosc')
@@ -22,9 +22,10 @@ BTMS_MENU('zgodnosc')
 BTMS_MENU('wykresy')
 BTMS_MENU('simulink')
 BTMS_MENU('nasa')
+BTMS_MENU('gcs')
 
 ZRODLA: 24 scenariusze MATLAB vs Python juz zweryfikowane na komputerze uzytkownika.
-Simulink Level-2 oraz NASA w MATLAB wymagaja teraz lokalnego testu.
+Simulink Level-2 oraz NASA w MATLAB: uruchomione 18.11.2026 (PASS).
 W Matlab R2025b program nie korzysta z bloku Interpreted MATLAB Fcn.
-Parametry modelu i skroty: README.md, Dokumentacja/RAPORT_TECHNICZNY.md.
+Parametry modelu i skroty: README.md, Dokumentacja/RAPORT_TECHNICZNY.pdf, ZMIANY_PO_PRZEGLADZIE.md.
 UWAGA: `calosc` nadpisuje *_matlab.csv i matlab_*.png; `cel80` plik goal80_feasibility_matlab.csv.

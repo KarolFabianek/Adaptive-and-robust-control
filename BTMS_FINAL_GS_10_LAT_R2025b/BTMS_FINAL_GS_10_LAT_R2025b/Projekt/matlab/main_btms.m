@@ -6,14 +6,16 @@ out=fullfile(root,'results');fig=fullfile(root,'figures');
 if ~exist(out,'dir'),mkdir(out);end
 if ~exist(fig,'dir'),mkdir(fig);end
 c=btms_cfg(); strategies={'CC','PI','GS','PI_FF','GS_FF','PI_SAFE','GS_SAFE','GS_LIFE'};
-ambs=[15,25,35]; cases=struct([]); lrows=cell(24,5);idx=0;
+ambs=[15,25,35]; cases=struct([]); lrows=cell(24,6);idx=0;
 for a=ambs
     for i=1:numel(strategies)
         st=strategies{i};idx=idx+1;
         [s,tr]=btms_run_session(c,st,a);cases=[cases;s]; %#ok<AGROW>
-        park=c.socpark_regular;if strcmp(st,'GS_LIFE'),park=c.socpark_life;end
-        L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,park);
-        lrows(idx,:)={string(st),a,L.SOH_pct(end),L.Dcal_pp(end),L.Dcyc_pp(end)};
+        % Ten sam SOC postoju (78%) dla wszystkich strategii - porownanie samego ladowania.
+        L=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,c.socpark_regular);
+        % Polityka postoju przy 50% SOC to osobna decyzja uzytkowania (nie cecha strategii).
+        L50=btms_life(c,s.mean_Tc_C,s.Ipeak_A,a,c.socpark_life);
+        lrows(idx,:)={string(st),a,L.SOH_pct(end),L.Dcal_pp(end),L.Dcyc_pp(end),L50.SOH_pct(end)};
         if a==35
             labels={'time_min','Tc_C','Ts_C','SOC','I_A','u','Qgen_W','Qcool_W','Paux_W','FF','integrator','e_K','I_therm_A'};
             writetable(array2table(tr,'VariableNames',labels),fullfile(out,['session_35C_' st '_matlab.csv']));
@@ -21,7 +23,8 @@ for a=ambs
     end
 end
 writetable(struct2table(cases),fullfile(out,'sessions_summary_matlab.csv'));
-Life=cell2table(lrows,'VariableNames',{'strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp'});
+Life=cell2table(lrows,'VariableNames',{'strategy','ambient_C','SOH_10y_pct','Dcal_pp','Dcyc_pp', ...
+    'SOH_10y_park050_pct'});
 writetable(Life,fullfile(out,'life_summary_matlab.csv'));
 % Model-based uncertainty stress test: does NOT constitute a formal robustness proof.
 rr=cell(162,8);j=0;
@@ -48,5 +51,6 @@ assert(all(arrayfun(@(v) v.status=="DONE",cases)),'Some cases did not finish');
 assert(all(abs([cases.SOC_end]-c.soc_target)<1e-9),'SOC target mismatch');
 assert(height(rr)==162,'Oczekiwano 162 testow niepewnosci');
 assert(all(isfinite([cases.Tmax_C])) && all([cases.time_min]>0),'Niepoprawne wyniki sesji');
+% Tozsamosc algebraiczna kroku Eulera: wykrywa blad w kodzie, nie waliduje fizyki.
 assert(all([cases.energy_balance_residual_J]<1e-7),'Energy balance broken');
 end
