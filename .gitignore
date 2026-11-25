@@ -1,0 +1,15 @@
+# MATLAB / Simulink – pliki tymczasowe i cache
+*.asv
+*.autosave
+*.slxc
+*.mexw64
+slprj/
+sccprj/
+codegen/
+*.slx.r20*
+*.bak
+# system
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*

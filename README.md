@@ -1,95 +1,84 @@
-# Sterowanie chłodzeniem baterii EV podczas szybkiego ładowania (BTMS)
+# Trwałość baterii EV: sterowanie ładowaniem i temperaturą dla SOH ≥ 80% po 10 latach
 
-Model cieplny pakietu Li-ion samochodu elektrycznego i porównanie ośmiu strategii sterowania chłodzeniem cieczowym. Strategie idą od stałego chłodzenia, przez regulator PI, po gain scheduling z feedforwardem i nadzorem prądu. Dla każdej sprawdzamy temperaturę ogniw podczas szybkiego ładowania od 25 do 80% SOC oraz prognozę stanu zdrowia baterii (SOH) po 10 latach.
+Projekt z przedmiotu **Sterowanie adaptacyjne i odporne** (Politechnika Opolska, WEAiI).
+Autorzy: **Karol Fabianek, Paweł Fortuna**.
 
-**Autorzy:** Karol Fabianek, Paweł Fortuna
-Politechnika Opolska, Wydział Elektrotechniki, Automatyki i Informatyki
+Projekt modeluje i steruje pakietem Li-ion 96s50p (60,5 kWh) samochodu elektrycznego. Strategia ma utrzymać **co najmniej 80% pojemności po 10 latach**. Steruje w tym celu parametrami ładowania (prąd, napięcie, okno SOC, moment ładowania) i temperaturą pakietu. Projekt rozwija wykład [*Zarządzanie termiczne baterią EV z zastosowaniem Gain Scheduling*](Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pdf).
 
-| Dokument | |
+| Dokument | Zawartość |
 |---|---|
-| [Pełna dokumentacja (PDF, 25 stron)](Projekt/docs/DOKUMENTACJA_BTMS.pdf) | model, regulatory, starzenie, weryfikacja, wyniki, literatura |
-| [Raport techniczny (PDF, 2 strony)](Projekt/docs/RAPORT_TECHNICZNY.pdf) | skrót najważniejszych wyników |
-| [Prezentacja (PDF)](Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pdf) | slajdy z wykładu (jest też wersja .pptx) |
+| [INSTRUKCJA_URUCHOMIENIA.md](INSTRUKCJA_URUCHOMIENIA.md) | jak uruchomić krok po kroku |
+| [LABORATORIUM.md](LABORATORIUM.md) | 5 ćwiczeń laboratoryjnych (`Projekt/lab/`) z zadaniami i oczekiwanymi wynikami |
+| [Projekt/docs/DOKUMENTACJA.md](Projekt/docs/DOKUMENTACJA.md) | równania, regulatory, metodyka, wszystkie wyniki |
+| [Prezentacja projektu (PDF)](Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pdf) · [PPTX](Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx) | slajdy z wynikami |
+| [Wykład (PDF)](Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pdf) · [PPTX](Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx) | gain scheduling w BTMS – zaktualizowany do wyników projektu |
+| [Skrypt wystąpień](Prezentacja/SKRYPT_PREZENTACJI.md) | tekst do każdego slajdu obu prezentacji z podziałem na osoby (Karol Fabianek / Paweł Fortuna) |
 
-![Temperatura rdzenia ogniw podczas ładowania przy 35°C](Projekt/figures/temperature_35C.png)
+![SOH przez 10 lat w trzech klimatach](Projekt/figures/e05_soh_trajectories.png)
 
-## Cel
+## Główne wyniki
 
-- temperatura rdzenia ogniw **poniżej 40°C** w każdej sesji ładowania,
-- **SOH ≥ 80%** po 10 latach eksploatacji.
+**SOH po 10 latach** (15 tys. km dojazdów + 24 trasy po 300 km z szybkim ładowaniem rocznie):
 
-## Wyniki przy temperaturze otoczenia 35°C
-
-| Strategia | Tmax rdzenia | Czas ładowania | Energia chłodzenia | SOH po 10 latach* |
+| Klimat | STD_100 – typowy BMS, ładowanie do 100% | STD_90 | **LIFE** – proponowana | **LIFE_ADAPT** – z pętlą SOH |
 |---|---:|---:|---:|---:|
-| CC – stałe chłodzenie, bez regulatora | 50,95°C | 20,9 min | 0,175 kWh | 70,4% |
-| PI | 37,96°C | 20,9 min | 0,667 kWh | 74,1% |
-| GS – gain scheduling | 37,90°C | 20,9 min | 0,685 kWh | 74,2% |
-| GS_SAFE – GS + feedforward + nadzór prądu | 35,51°C | 20,9 min | 0,781 kWh | 75,6% |
-| GS_LIFE – GS_SAFE + limit 210 A | 35,18°C | 28,2 min | 0,570 kWh | 77,1% |
+| Opole (śr. 8,5°C) | 81,1% | 85,0% | 87,9% | 87,6% |
+| Madryt (śr. 15°C) | 79,1% ✗ | 82,3% | 85,2% | 84,6% |
+| Dubaj (śr. 28°C) | 69,2% ✗ | 72,5% ✗ | 78,3% ✗ | **80,8% ✓** |
 
-\* postój przy 50% SOC, średnia roczna temperatura 35°C
+- **Szybkie ładowanie przy 0°C:** typowy BMS potrzebuje 46,7 min (20 → 80%). LIFE podgrzewa pakiet w drodze do ładowarki (1,27 kWh) i ładuje w **21 min bez litowania anody**. Ładowanie bez ochrony anody zużywa baterię ok. 38× bardziej.
+- **Gain scheduling:** pulsacja odcięcia pętli termicznej jest stała w całym zakresie pracy. Przy stałych nastawach PI spada 3× przy ρ = 6 K.
+- **Odporność (Monte Carlo, 50 pakietów z niepewnym modelem starzenia):** cel 80% spełnia 72% pakietów ze strategią STD_90, 92% z LIFE i **96% z LIFE_ADAPT**.
+- **Simulink = MATLAB:** model blokowy i skrypt dają te same przebiegi (max |ΔTc| = 5e-07 K).
+- **12/12 testów poprawności** (bilans energii i ładunku, zbieżność, CV, obserwator, kalibracja).
 
-- Bez regulatora rdzeń dochodzi do 51°C. Regulator PI trzyma ok. 38°C kosztem ok. 2% energii ładowania, a z feedforwardem ok. 35,5°C.
-- W 162 symulacjach z niepewnymi parametrami (rezystancja ±15%, przewodności ±20%, otoczenie 32–38°C) maksimum wynosi 38,17°C.
-- Cel 80% SOH jest spełniony, gdy średnia temperatura postoju nie przekracza 27°C. Przy średniej 35°C sam regulator ładowania nie wystarcza: trzeba chłodzić pakiet także na postoju albo obniżyć SOC postoju. Wariant W3 z [`goal80_study/`](Projekt/goal80_study/README.md) daje 80,7% przy ok. 3% dodatkowej energii.
+## Co jest w projekcie
 
-## Model w skrócie
+- **Model pakietu:** ECM 1RC + OCV(SOC), R(T) wg Arrheniusa, faza CC-CV, dwuwęzłowy model cieplny (rdzeń–powierzchnia), chiller i grzałka. Całkowanie niejawne: 10 lat liczy się w ok. 9 s.
+- **Potencjał anody i litowanie (Li plating):** model decyduje, jaki prąd jest bezpieczny w danej temperaturze, przy danym SOC i SOH.
+- **Starzenie:** kalendarzowe (t^0,75, Arrhenius, napięcie), cykliczne (√FEC, C-rate, SOC), litowanie; sprzężenie SOH → pojemność i rezystancja.
+- **Sterowanie w trzech skalach czasu:**
+  - 1 s: GS-PI chłodzenia z feedforwardem i anti-windupem, warstwowy limit prądu, obserwator temperatury rdzenia;
+  - sesja/doba: ładowanie AC „just in time”, podgrzewanie przed DC, ochrona termiczna na postoju;
+  - miesiąc: estymator RLS stanu zdrowia + regulator PI „budżetu zdrowia”, który adaptuje parametry ładowania.
+- **9 eksperymentów** (E01–E09): mapy modelu, sesje ładowania, analiza częstotliwościowa GS, optymalna temperatura ładowania, 10 lat × 3 klimaty, Monte Carlo, identyfikacja RLS, dane NASA B0005, model Simulink.
 
-- **Model cieplny:** pakiet 96s50p (4800 ogniw 18650, 60,5 kWh) opisany dwoma węzłami, rdzeniem i powierzchnią. Równania całkowane są metodą Eulera z krokiem 5 s.
-- **Sterowanie:**
-  - regulator PI temperatury rdzenia (Tref = 30°C) z anti-windupem,
-  - gain scheduling po ρ = Ts − Tcool,
-  - feedforward od ciepła I²R,
-  - nadzór prądu powyżej 36,5°C.
-- **Starzenie:** kalendarzowe (∝ √t) i cykliczne (∝ liczba cykli). Oba rosną wykładniczo z temperaturą, a kalendarzowe dodatkowo z SOC postoju.
-- **Weryfikacja:**
-  - testy poprawności (bilans energii, zbieżność kroku),
-  - test odporności,
-  - lokalna analiza stabilności (54 punkty pracy),
-  - wrażliwość na przewodność Gcs,
-  - dane NASA B0005,
-  - model Simulink zgodny z MATLAB-em z błędem 0.
+## Szybki start
+
+```matlab
+cd Projekt
+start_here                    % menu
+run_all                       % wszystko: testy + E01–E09 (ok. 30 min)
+run_all(struct('quick', 1))   % szybko (ok. 5 min)
+```
+
+Wymagany MATLAB R2026b (na nim projekt był uruchamiany i sprawdzany), bez dodatkowych toolboxów. Simulink jest potrzebny tylko do E09. Szczegóły: [INSTRUKCJA_URUCHOMIENIA.md](INSTRUKCJA_URUCHOMIENIA.md).
 
 ## Struktura repozytorium
 
 ```
-Prezentacja/              slajdy (.pptx i .pdf)
-Projekt/
-├── main.m                główny skrypt: 24 symulacje, SOH po 10 latach, wykresy
-├── params.m              wszystkie parametry modelu, regulatora i starzenia
-├── model_step.m          jeden krok symulacji
-├── simulate_charging.m   jedna sesja ładowania
-├── controller_gains.m    nastawy PI i gain scheduling
-├── aging_model.m         model starzenia
-├── robustness_test.m     test odporności (162 symulacje)
-├── stability_analysis.m  linearyzacja i wartości własne
-├── gcs_sensitivity.m     wrażliwość na Gcs
-├── goal80_analysis.m     warunki spełnienia celu 80% SOH
-├── nasa_validation.m     dane NASA B0005
-├── check_results.m       testy poprawności
-├── btms_model.slx        model Simulink (R2025b) + btms_sfun.m, run_simulink.m
-├── data/                 B0005.mat
-├── results/              wyniki (CSV)
-├── figures/              wykresy (PNG)
-├── goal80_study/         studium: jak osiągnąć 80% SOH przy 35°C
-└── docs/                 dokumentacja PDF
+├── README.md
+├── INSTRUKCJA_URUCHOMIENIA.md
+├── LABORATORIUM.md
+├── Prezentacja/              prezentacja projektu, wykład (.pptx + .pdf), skrypt wystąpień
+└── Projekt/
+    ├── start_here.m, run_all.m, bms_setup.m
+    ├── config/               parametry (bms_params.m – jedno miejsce na wszystkie liczby)
+    ├── model/                pakiet, anoda, rezystancja, starzenie
+    ├── control/              GS-PI, obserwator, limit prądu, strategie, pętla SOH
+    ├── sim/                  sesja, doba, 10 lat, klimat
+    ├── experiments/          E01–E08
+    ├── lab/                  ćwiczenia laboratoryjne lab1–lab5
+    ├── simulink/             budowa i walidacja modelu .slx (E09)
+    ├── tests/                testy poprawności
+    ├── data/                 NASA B0005
+    ├── results/              wyniki CSV + PODSUMOWANIE.md
+    ├── figures/              wykresy PNG
+    └── docs/                 DOKUMENTACJA.md
 ```
-
-Opis każdego pliku jest w [`Projekt/README.md`](Projekt/README.md).
-
-## Uruchomienie
-
-Wymagany MATLAB R2025b. Simulink jest potrzebny tylko do `run_simulink.m`.
-
-```matlab
-cd Projekt
-main            % 24 symulacje, SOH, wykresy -> results/, figures/
-check_results   % testy poprawności: [OK] / [BLAD]
-```
-
-Pozostałe skrypty (`robustness_test`, `stability_analysis`, `gcs_sensitivity`, `goal80_analysis`, `nasa_validation`, `run_simulink`, `goal80_study/goal80_study`) są niezależne i można je uruchamiać w dowolnej kolejności.
 
 ## Ograniczenia
 
-Model nie jest zwalidowany na pomiarach rzeczywistego pakietu, a część parametrów (m.in. współczynniki starzenia) jest przyjęta. Wyniki służą do porównania strategii, a nie do prognozy dla konkretnego pojazdu. Szczegóły są w rozdziale 7 [dokumentacji](Projekt/docs/DOKUMENTACJA_BTMS.pdf).
+Współczynniki starzenia pochodzą z literatury, a nie z badań konkretnego ogniwa. Dlatego wyniki służą przede wszystkim do porównania strategii. Wpływ tej niepewności badamy metodą Monte Carlo (E06). Pełna lista ograniczeń jest w [dokumentacji, rozdział 8](Projekt/docs/DOKUMENTACJA.md#8-ograniczenia).
+
+Poprzednia wersja projektu (model z wykładu) jest zachowana w tagu [`v1-wyklad`](https://github.com/KarolFabianek/Adaptive-and-robust-control/tree/v1-wyklad).
