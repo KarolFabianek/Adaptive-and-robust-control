@@ -251,9 +251,9 @@ Plik: `Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx` · 33 slajdów · tekst k
 
 **Karol Fabianek:** Podsumujmy w czterech punktach. Po pierwsze: najsilniejszym pokrętłem trwałości jest okno SOC i czas postoju – w Madrycie sama zmiana sposobu ładowania daje ponad sześć punktów procentowych. Po drugie: zimą baterię przed szybkim ładowaniem trzeba podgrzać, bo inaczej albo litujemy anodę, albo ładujemy dwa razy dłużej. Po trzecie: gain scheduling utrzymuje stałą dynamikę pętli chłodzenia w całym zakresie pracy. Po czwarte: adaptacja po zmierzonym SOH pozwala spełnić cel nawet w Dubaju i zmniejsza wrażliwość na błędy modelu starzenia.
 
-### Slajd 31 – Jak uruchomić projekt
+### Slajd 31 – Każdy wynik można odtworzyć
 
-**Karol Fabianek:** Każdą liczbę z obu prezentacji można odtworzyć. Wystarczy pobrać repozytorium z GitHuba, otworzyć folder Projekt w MATLAB-ie i wpisać run_all. Wszystkie wyniki trafiają do plików CSV, a wykresy do folderu figures. Projekt nie wymaga dodatkowych toolboxów, a Simulink jest potrzebny tylko do modelu blokowego. Instrukcja uruchomienia, opis ćwiczeń i dokumentacja techniczna są w repozytorium.
+**Karol Fabianek:** Każdą liczbę z obu prezentacji można odtworzyć. Wystarczy pobrać repozytorium z GitHuba, otworzyć folder Projekt w MATLAB-ie i wpisać run_all. Pełny przebieg trwa około 25 minut, tryb szybki około 10. Wszystkie wyniki trafiają do plików CSV, a wykresy do folderu figures. Projekt nie wymaga dodatkowych toolboxów, a Simulink jest potrzebny tylko do modelu blokowego. Opis ćwiczeń i dokumentacja techniczna są w repozytorium.
 
 ### Slajd 32 – Bibliografia
 

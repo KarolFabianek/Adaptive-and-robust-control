@@ -1,6 +1,6 @@
 # Ćwiczenia laboratoryjne – BTMS i trwałość baterii EV
 
-Pięć ćwiczeń w folderze `Projekt/lab/`. Wszystkie wydruki poniżej pochodzą z uruchomienia w MATLAB R2026b (z Simulinkiem). Każde jest skryptem MATLAB podzielonym na sekcje `%%`. Uruchamia się je sekcja po sekcji: **Ctrl+Enter** albo *Run Section*. Każde ćwiczenie trwa ok. 1–2 min obliczeń. Na końcu każdego pliku są **zadania do samodzielnego wykonania**.
+Pięć ćwiczeń w folderze `Projekt/lab/`. Wszystkie wydruki poniżej pochodzą z uruchomienia w MATLAB R2026b (z Simulinkiem). Każde jest skryptem MATLAB podzielonym na sekcje `%%`. Uruchamia się je sekcja po sekcji: **Ctrl+Enter** albo *Run Section*. Każde ćwiczenie trwa ok. 1–2 min obliczeń (laptop na zasilaczu; na baterii 3–5 razy dłużej). Na końcu każdego pliku są **zadania do samodzielnego wykonania**.
 
 **Przygotowanie:** otwórz MATLAB i ustaw folder bieżący na `Projekt` (albo `Projekt/lab`). Skrypty same dodają potrzebne ścieżki.
 

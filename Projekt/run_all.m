@@ -1,8 +1,10 @@
 function run_all(opts)
 %RUN_ALL  Uruchamia cały projekt: testy, eksperymenty E01–E09, podsumowanie.
 %
-%   run_all                     – pełny przebieg (ok. 25–35 min, głównie Monte Carlo)
-%   run_all(struct('quick', 1)) – szybki przebieg (ok. 5 min): Monte Carlo N = 10
+%   run_all                     – pełny przebieg (ok. 25 min na zasilaczu, głównie Monte Carlo)
+%   run_all(struct('quick', 1)) – szybki przebieg (ok. 10 min): Monte Carlo N = 10
+%                                 (nadpisuje wyniki E06 wersją z N = 10)
+%   Na laptopie zasilanym z baterii obliczenia trwają 3–5 razy dłużej.
 %   run_all(struct('simulink', 0)) – bez Simulinka (gdy brak licencji)
 %   run_all(struct('summary', 1))  – tylko odtworzenie results/PODSUMOWANIE.md z plików CSV
 %
@@ -21,26 +23,25 @@ t_all = tic;
 fprintf('BTMS – sterowanie ładowaniem i temperaturą dla trwałości baterii EV\n');
 fprintf('Folder projektu: %s\n', root);
 
-ok = run_tests();
+t = tic; ok = run_tests(); czas('testy', t);
 if ~ok
     warning('run_all:tests', 'Nie wszystkie testy przeszły – sprawdź results/tests.csv');
 end
 
-R = struct(); %#ok<STRNU> – wyniki zwracane przez eksperymenty (podgląd w debuggerze)
-R.e01 = exp01_model_maps();
-R.e02 = exp02_fast_charge();
-R.e03 = exp03_gain_scheduling();
-R.e04 = exp04_charge_temperature();
-[R.e05, ~] = exp05_lifetime();
 if opts.quick, N = 10; else, N = 50; end
-R.e06 = exp06_monte_carlo(N, 'madryt');
-R.e07 = exp07_rls_identification();
-R.e08 = exp08_nasa_validation();
+t = tic; exp01_model_maps();          czas('E01', t);
+t = tic; exp02_fast_charge();         czas('E02', t);
+t = tic; exp03_gain_scheduling();     czas('E03', t);
+t = tic; exp04_charge_temperature();  czas('E04', t);
+t = tic; exp05_lifetime();            czas('E05', t);
+t = tic; exp06_monte_carlo(N, 'madryt'); czas('E06', t);
+t = tic; exp07_rls_identification();  czas('E07', t);
+t = tic; exp08_nasa_validation();     czas('E08', t);
 if opts.simulink
     if license('test', 'Simulink') && ~isempty(ver('simulink'))
-        R.e09 = run_simulink_validation(0);
+        t = tic; run_simulink_validation(0); czas('E09', t);
     else
-        fprintf(2, 'Brak licencji Simulink – pomijam E09.\n');
+        fprintf(2, 'Simulink nie jest zainstalowany – pomijam E09.\n');
     end
 end
 write_summary(root, ok);
@@ -85,6 +86,10 @@ if exist(f9, 'file')
     fprintf(fid, '\n## E09 – Simulink vs MATLAB\n\nkroki: %d / %d, maks. |dTc| = %.2e K, maks. |dI| = %.2e A\n', ...
         V.steps_simulink, V.steps_matlab, V.max_dTc_K, V.max_dI_A);
 end
+end
+
+function czas(nazwa, t)
+fprintf('--> %s gotowe w %.0f s\n', nazwa, toc(t));
 end
 
 function s = tern(c, a, b)

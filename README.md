@@ -7,7 +7,6 @@ Projekt modeluje i steruje pakietem Li-ion 96s50p (60,5 kWh) samochodu elektrycz
 
 | Dokument | Zawartość |
 |---|---|
-| [INSTRUKCJA_URUCHOMIENIA.md](INSTRUKCJA_URUCHOMIENIA.md) | jak uruchomić krok po kroku |
 | [LABORATORIUM.md](LABORATORIUM.md) | 5 ćwiczeń laboratoryjnych (`Projekt/lab/`) z zadaniami i oczekiwanymi wynikami |
 | [Projekt/docs/DOKUMENTACJA.md](Projekt/docs/DOKUMENTACJA.md) | równania, regulatory, metodyka, wszystkie wyniki |
 | [Prezentacja projektu (PDF)](Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pdf) · [PPTX](Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx) | slajdy z wynikami |
@@ -34,7 +33,7 @@ Projekt modeluje i steruje pakietem Li-ion 96s50p (60,5 kWh) samochodu elektrycz
 
 ## Co jest w projekcie
 
-- **Model pakietu:** ECM 1RC + OCV(SOC), R(T) wg Arrheniusa, faza CC-CV, dwuwęzłowy model cieplny (rdzeń–powierzchnia), chiller i grzałka. Całkowanie niejawne: 10 lat liczy się w ok. 9 s.
+- **Model pakietu:** ECM 1RC + OCV(SOC), R(T) wg Arrheniusa, faza CC-CV, dwuwęzłowy model cieplny (rdzeń–powierzchnia), chiller i grzałka. Całkowanie niejawne: 10 lat eksploatacji liczy się w ok. 9 s (laptop na zasilaczu).
 - **Potencjał anody i litowanie (Li plating):** model decyduje, jaki prąd jest bezpieczny w danej temperaturze, przy danym SOC i SOH.
 - **Starzenie:** kalendarzowe (t^0,75, Arrhenius, napięcie), cykliczne (√FEC, C-rate, SOC), litowanie; sprzężenie SOH → pojemność i rezystancja.
 - **Sterowanie w trzech skalach czasu:**
@@ -43,22 +42,22 @@ Projekt modeluje i steruje pakietem Li-ion 96s50p (60,5 kWh) samochodu elektrycz
   - miesiąc: estymator RLS stanu zdrowia + regulator PI „budżetu zdrowia”, który adaptuje parametry ładowania.
 - **9 eksperymentów** (E01–E09): mapy modelu, sesje ładowania, analiza częstotliwościowa GS, optymalna temperatura ładowania, 10 lat × 3 klimaty, Monte Carlo, identyfikacja RLS, dane NASA B0005, model Simulink.
 
-## Szybki start
+## Ciekawostki z projektu
 
-```matlab
-cd Projekt
-start_here                    % menu
-run_all                       % wszystko: testy + E01–E09 (ok. 30 min)
-run_all(struct('quick', 1))   % szybko (ok. 5 min)
-```
+| | |
+|---|---|
+| ![Mapa prądu bez litowania](Projekt/figures/e01_plating_map.png) | **Anoda pracuje ok. 100 mV nad metalicznym litem.** Przy SOC 80% bezpieczny prąd ładowania to 1,85C w 25°C, ale tylko 0,29C w 0°C. Zimą nawet wolne ładowanie AC do 100% może litować anodę – w Opolu typowy BMS traci przez to 3,8 p.p. pojemności w 10 lat. |
+| ![Kształt V](Projekt/figures/e01_v_shape.png) | **Istnieje optymalna temperatura szybkiego ładowania** (kształt „V”, Waldmann i in. 2014): lewe ramię to litowanie, prawe – wzrost SEI. Optimum rośnie z prądem: 5°C dla 0,5C, 14°C dla 1C, 22°C dla 1,71C. |
+| ![Starzenie kalendarzowe](Projekt/figures/e01_calendar_map.png) | **Bateria starzeje się także na postoju.** 100% SOC przyspiesza starzenie ok. 2,2× względem 50%, a +10 K – ok. 2×. W Dubaju sam postój przy 100% zabiera 19,8% pojemności w 10 lat. |
+| ![Monte Carlo](Projekt/figures/e06_monte_carlo_madryt.png) | **Sprzężenie zwrotne od SOH kompensuje błędy modelu starzenia.** Na 50 losowych pakietach cel 80% spełnia 72% z typowym BMS i 96% z pętlą adaptacyjną; odchylenie standardowe maleje z 4,1 do 3,0 p.p. |
+| ![NASA B0005](Projekt/figures/e08_nasa_B0005.png) | **Prawdziwe ogniwo nie musi trzymać się założonego modelu.** Dane NASA B0005 lepiej opisuje degradacja liniowa niż pierwiastkowa, a najlepiej dopasowany wykładnik prognozuje najgorzej (przeuczenie). |
 
-Wymagany MATLAB R2026b (na nim projekt był uruchamiany i sprawdzany), bez dodatkowych toolboxów. Simulink jest potrzebny tylko do E09. Szczegóły: [INSTRUKCJA_URUCHOMIENIA.md](INSTRUKCJA_URUCHOMIENIA.md).
+Projekt działa w MATLAB R2026b bez dodatkowych toolboxów; model blokowy wymaga Simulinka. Wszystkie wyniki i wykresy w repozytorium zostały wygenerowane w tej wersji.
 
 ## Struktura repozytorium
 
 ```
 ├── README.md
-├── INSTRUKCJA_URUCHOMIENIA.md
 ├── LABORATORIUM.md
 ├── Prezentacja/              prezentacja projektu, wykład (.pptx + .pdf), skrypt wystąpień
 └── Projekt/

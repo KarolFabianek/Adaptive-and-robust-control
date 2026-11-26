@@ -4,7 +4,7 @@
 
 Karol Fabianek, Paweł Fortuna · Sterowanie adaptacyjne i odporne · Politechnika Opolska, WEAiI
 
-Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, wygenerowanych w MATLAB R2026b z Simulinkiem. Odtworzysz je poleceniem `run_all` (patrz [INSTRUKCJA_URUCHOMIENIA.md](../../INSTRUKCJA_URUCHOMIENIA.md)). Ćwiczenia laboratoryjne opisuje [LABORATORIUM.md](../../LABORATORIUM.md), a tekst wystąpień – [Prezentacja/SKRYPT_PREZENTACJI.md](../../Prezentacja/SKRYPT_PREZENTACJI.md).
+Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, wygenerowanych w MATLAB R2026b z Simulinkiem. Odtworzysz je poleceniem `run_all`. Ćwiczenia laboratoryjne opisuje [LABORATORIUM.md](../../LABORATORIUM.md), a tekst wystąpień – [Prezentacja/SKRYPT_PREZENTACJI.md](../../Prezentacja/SKRYPT_PREZENTACJI.md).
 
 ---
 
@@ -88,7 +88,7 @@ Element wykonawczy u ∈ [−1, 1]:
 - chłodzenie (u > 0): Q̇ = min(6,5 kW·u; G_cool·u·(T_s − 18°C)), G_cool = 470 W/K, chiller COP = 2,6;
 - grzanie (u < 0): grzałka PTC 5 kW w obiegu cieczy (sprawność 0,95).
 
-Równania cieplne całkujemy **niejawną metodą Eulera**: w każdym kroku rozwiązujemy układ 2×2. Metoda jest bezwarunkowo stabilna, więc postój symulujemy z krokiem 60 s. Dzięki temu 10 lat eksploatacji liczy się w ok. 9 s. Bilans energii jest spełniony z dokładnością 10⁻⁹ J na krok (test T1).
+Równania cieplne całkujemy **niejawną metodą Eulera**: w każdym kroku rozwiązujemy układ 2×2. Metoda jest bezwarunkowo stabilna, więc postój symulujemy z krokiem 60 s. Dzięki temu 10 lat eksploatacji liczy się w ok. 9 s (laptop na zasilaczu; na baterii ok. 45 s). Bilans energii jest spełniony z dokładnością 10⁻⁹ J na krok (test T1).
 
 ---
 
