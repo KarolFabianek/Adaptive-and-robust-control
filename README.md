@@ -11,7 +11,7 @@ Projekt modeluje i steruje pakietem Li-ion 96s50p (60,5 kWh) samochodu elektrycz
 | [Projekt/docs/DOKUMENTACJA.md](Projekt/docs/DOKUMENTACJA.md) | równania, regulatory, metodyka, wszystkie wyniki |
 | [Prezentacja projektu (PDF)](Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pdf), [PPTX](Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx) | slajdy z wynikami |
 | [Wykład (PDF)](Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pdf), [PPTX](Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx) | gain scheduling w BTMS, liczby zgodne z wynikami projektu |
-| [Skrypt wystąpień](Prezentacja/SKRYPT_PREZENTACJI.md) | tekst do każdego slajdu obu prezentacji z podziałem na osoby (Karol Fabianek / Paweł Fortuna) |
+| [Skrypt: projekt](Prezentacja/SKRYPT_PROJEKT.md), [Skrypt: wykład](Prezentacja/SKRYPT_WYKLAD.md) | tekst do każdego slajdu z podziałem na osoby |
 
 ![SOH przez 10 lat w trzech klimatach](Projekt/figures/e05_soh_trajectories.png)
 
