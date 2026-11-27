@@ -36,7 +36,7 @@ Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, w
 
 Obiekt jest ten sam co na wykładzie: pakiet **96s50p** z 4800 ogniw 18650 NMC/grafit (3,6 V; 3,5 Ah; 28 mΩ). Daje to 345,6 V, 175 Ah, 60,48 kWh i 53,76 mΩ.
 
-Projekt rozszerza wykład. Usuwa ograniczenia wskazane na slajdzie 20 wykładu:
+Projekt rozszerza pierwotny model z wykładu (tag `v1-wyklad`) i usuwa jego uproszczenia:
 
 | Ograniczenie z wykładu | Rozwiązanie w projekcie |
 |---|---|

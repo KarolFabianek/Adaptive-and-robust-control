@@ -4,14 +4,14 @@
 
 Karol Fabianek, Paweł Fortuna. Sterowanie adaptacyjne i odporne, Politechnika Opolska, WEAiI.
 
-Prezentacja: `BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 46 slajdów. Mowa trwa około 30 min przy tempie 130 słów na minutę, 4 pokazy w MATLAB-ie około 10 min, razem z przejściami między slajdami około 45 min. Ten sam tekst jest w notatkach prelegenta w pliku .pptx.
+Prezentacja: `BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 46 slajdów. Mowa trwa około 29 min przy tempie 130 słów na minutę, 4 pokazy w MATLAB-ie około 10 min, razem z przejściami między slajdami około 45 min. Ten sam tekst jest w notatkach prelegenta w pliku .pptx.
 
 ## Podział na osoby
 
 | Osoba | Slajdy | Liczba slajdów | Czas mówienia |
 |---|---|---:|---:|
 | Karol Fabianek | 1-14, 25-31, 40-43, 46 | 26 | około 16 min |
-| Paweł Fortuna | 15-24, 32-39, 44-45 | 20 | około 14 min |
+| Paweł Fortuna | 15-24, 32-39, 44-45 | 20 | około 13 min |
 
 ## Przebieg wykładu
 
@@ -102,7 +102,7 @@ To pierwsza ciekawostka. Anoda grafitowa przy wysokim SOC pracuje tylko około s
 
 **Mówi: Karol Fabianek**
 
-Model starzenia ma trzy składowe. Kalendarzowa rośnie jak czas do potęgi 0,75 i zależy od temperatury oraz napięcia, czyli SOC. Cykliczna rośnie jak pierwiastek z liczby cykli i zależy od temperatury, prądu i zakresu SOC. Trzecia to litowanie. Różne warunki sumujemy metodą czasu zastępczego, która poprawnie łączy lato z zimą i postój z jazdą. Mapa pokazuje samo starzenie kalendarzowe. Ciekawostka: bateria stojąca przy stu procentach SOC starzeje się około 2,2 raza szybciej niż przy pięćdziesięciu, a każde dziesięć stopni podwaja tempo. To najtańsze pokrętła trwałości, bo nie wymagają mocniejszego chłodzenia.
+Model starzenia ma trzy składowe: kalendarzową, która rośnie jak czas do potęgi 0,75, cykliczną, która rośnie jak pierwiastek z liczby cykli, oraz litowanie. Mapa pokazuje utratę pojemności po dziesięciu latach samego postoju w stałej temperaturze i przy stałym SOC. Ciekawostka: bateria stojąca przy stu procentach SOC starzeje się około 2,2 raza szybciej niż przy pięćdziesięciu, a każde dziesięć stopni podwaja tempo. To najtańsze pokrętła trwałości, bo nie wymagają mocniejszego chłodzenia.
 
 ### Slajd 13. Czynniki przyspieszenia starzenia
 
@@ -140,7 +140,7 @@ Jak dobraliśmy nastawy? Regulator PI dostroiliśmy w punkcie projektowym: rho r
 
 **Mówi: Paweł Fortuna**
 
-Przejdźmy do analizy częstotliwościowej regulatora chłodzenia. Wzmocnienie obiektu, ile ciepła odbiera chłodzenie na jednostkę sterowania, jest proporcjonalne do różnicy temperatur rho między powierzchnią a cieczą. Zlinearyzowaliśmy pętlę w 33 punktach pracy i policzyliśmy charakterystyki częstotliwościowe bez Control System Toolbox. Przy stałych nastawach pulsacja odcięcia spada razem z rho: przy 6 kelwinach PI ma 0,88 miliradiana na sekundę, czyli trzy razy mniej niż w punkcie projektowym. GS utrzymuje 2,61, tyle samo co przy 17 kelwinach. Zapas fazy wynosi około 90 stopni w całym zakresie. Analizę prowadzimy na modelu zlinearyzowanym w punkcie pracy, z transmitancją od sterowania chłodzeniem do temperatury rdzenia.
+Przejdźmy do analizy częstotliwościowej regulatora chłodzenia. Zlinearyzowaliśmy pętlę w 33 punktach pracy i policzyliśmy charakterystyki częstotliwościowe bez Control System Toolbox. Przy stałych nastawach pulsacja odcięcia spada razem z rho: przy 6 kelwinach PI ma 0,88 miliradiana na sekundę, czyli trzy razy mniej niż w punkcie projektowym. GS utrzymuje 2,61, tyle samo co przy 17 kelwinach. Zapas fazy wynosi około 90 stopni w całym zakresie. Analizę prowadzimy na modelu zlinearyzowanym w punkcie pracy, z transmitancją od sterowania chłodzeniem do temperatury rdzenia.
 
 ### Slajd 19. Odpowiedź na zakłócenie i symulacja nieliniowa
 
@@ -152,9 +152,9 @@ Ten sam efekt widać w dziedzinie czasu. Po lewej odpowiedź temperatury rdzenia
 
 **Mówi: Paweł Fortuna**
 
-Uczciwe porównanie PI i GS bez nadzoru prądu i bez feedforwardu. Przy 25 stopniach PI osiąga 35,29, a GS 34,71 stopnia przy tym samym czasie ładowania. Wykres pokazuje sygnał chłodzenia: GS reaguje wcześniej i mocniej, bo w chłodniejszym punkcie pracy ma większe nastawy. Przy 15 stopniach różnica wynosi −0,37 kelwina. W punkcie projektowym, przy 35 stopniach, oba regulatory są praktycznie równe. Dokładnie tego oczekujemy od harmonogramu nastaw.
+Uczciwe porównanie PI i GS bez nadzoru prądu i bez feedforwardu. Przy 25 stopniach PI osiąga 35,29, a GS 34,71 stopnia przy tym samym czasie ładowania. Wykres pokazuje sygnał chłodzenia: GS reaguje wcześniej i mocniej, bo w chłodniejszym punkcie pracy ma większe nastawy. Przy 15 stopniach GS utrzymuje rdzeń o 0,37 kelwina chłodniejszy. W punkcie projektowym, przy 35 stopniach, oba regulatory są praktycznie równe. Dokładnie tego oczekujemy od harmonogramu nastaw.
 
-> **Pokaz w MATLAB, około 2,5 min.** Skrypt lab2_regulator_pi_gs: sekcja 2 rysuje harmonogram Kp(ρ) i Ki(ρ), sekcja 5 wypisuje pulsację odcięcia PI i GS dla ρ = 6, 10 i 17 K. Pokazujemy, że GS zachowuje 2,67 mrad/s, a PI przy 6 K spada do 0,88 mrad/s.
+> **Pokaz w MATLAB, około 2,5 min.** Skrypt lab2_regulator_pi_gs: sekcja 2 rysuje harmonogram Kp(ρ) i Ki(ρ), sekcja 5 wypisuje pulsację odcięcia PI i GS dla ρ = 6, 10 i 17 K. Pokazujemy, że GS zachowuje 2,67 mrad/s, a PI przy 6 K spada do 0,88 mrad/s. Skrypt podaje pierwszy punkt siatki częstotliwości, dlatego wynik różni się od 2,61 mrad/s z analizy dokładnej.
 
 ### Slajd 21. Regulator PI z anti-windupem i sprzężeniem w przód
 
@@ -210,7 +210,7 @@ Ten slajd zestawia maksymalne temperatury przy 35 stopniach i ładowaniu od 20 d
 
 **Mówi: Karol Fabianek**
 
-Pierwszy scenariusz: zero stopni, kierowca jedzie autostradą do szybkiej ładowarki. Typowy BMS ładuje zimną baterię według tablicy, więc trwa to 46,7 minuty. Przy wysokim SOC anoda i tak lekko się lituje, 47 ppm. Strategia LIFE wie z nawigacji, że zbliża się ładowarka, i przez ostatnie dwadzieścia minut jazdy grzeje pakiet. Zużywa na to 1,27 kWh, czyli około dwóch procent pojemności. Potem ładuje się w 21,0 minut bez litowania. Dla porównania: ładowanie bez żadnej ochrony anody zużywa baterię około 38 razy bardziej. Warto spojrzeć na przebieg potencjału anody. Dla typowego BMS spada on poniżej zera pod koniec ładowania, czyli wtedy, gdy SOC jest już wysoki, a bateria wciąż chłodna.
+Pierwszy scenariusz: zero stopni, kierowca jedzie autostradą do szybkiej ładowarki. Typowy BMS ładuje zimną baterię według tablicy, więc trwa to 46,7 minuty. Przy wysokim SOC anoda i tak lekko się lituje, 47 ppm. Strategia LIFE wie z nawigacji, że zbliża się ładowarka, i w czasie piętnastominutowego dojazdu grzeje pakiet. Zużywa na to 1,27 kWh, czyli około dwóch procent pojemności. Potem ładuje się w 21,0 minut bez litowania. Dla porównania: ładowanie bez żadnej ochrony anody zużywa baterię około 38 razy bardziej. Warto spojrzeć na przebieg potencjału anody. Dla typowego BMS spada on poniżej zera pod koniec ładowania, czyli wtedy, gdy SOC jest już wysoki, a bateria wciąż chłodna.
 
 > **Pokaz w MATLAB, około 2,5 min.** Skrypt lab3_ladowanie_i_anoda: sekcja 2 wypisuje bezpieczny prąd w funkcji temperatury, sekcja 3 porównuje STD-90 i LIFE przy 0°C. Na wykresie widać spadek potencjału anody poniżej zera dla STD-90.
 
@@ -218,7 +218,7 @@ Pierwszy scenariusz: zero stopni, kierowca jedzie autostradą do szybkiej ładow
 
 **Mówi: Karol Fabianek**
 
-Ten slajd odpowiada na pytanie, co się dzieje, gdy nie zdążymy podgrzać baterii. Jeśli ma ona 5 stopni, ładowanie bez limitu anody kosztuje 2247 ppm pojemności, a z limitem tylko 36 ppm. Ładowanie trwa wtedy o 8,4 minuty dłużej. Ciekawostka: zimna bateria grzeje się sama prądem ładowania, około półtora stopnia na minutę, więc limit działa głównie przez pierwsze minuty. Powyżej 33 stopni hamuje z kolei nadzór termiczny.
+Ten slajd odpowiada na pytanie, co się dzieje, gdy nie zdążymy podgrzać baterii. Jeśli ma ona 5 stopni, ładowanie bez limitu anody kosztuje 2247 ppm pojemności, a z limitem tylko 36 ppm. Ładowanie trwa wtedy o 8,4 minuty dłużej. Ciekawostka: zimna bateria nagrzewa się sama prądem ładowania, więc limit anody działa głównie przez pierwsze minuty. Powyżej 33 stopni hamuje z kolei nadzór termiczny.
 
 ### Slajd 31. Czas ładowania i zużycie baterii dla 6 strategii
 
@@ -238,7 +238,7 @@ Gain scheduling to adaptacja w torze otwartym, bo korzysta ze znanej zależnośc
 
 **Mówi: Paweł Fortuna**
 
-Gain scheduling to adaptacja w torze otwartym. Drugą formą adaptacji jest identyfikacja online. Model ARX z trzema parametrami jest dokładny dla obwodu RC, a estymator RLS liczy je w każdej sekundzie z prądu i napięcia. W trzydziestej minucie testu rezystancje rosną skokowo o trzydzieści procent, co odpowiada spadkowi temperatury albo starzeniu. Estymator z zapominaniem dochodzi do 23,2 miliomów przy prawdziwej wartości 23,3. Bez zapominania zostaje na 19,9, bo uśrednia całą historię. Wniosek: estymator bez zapominania nigdy nie zauważy starzenia baterii.
+Tak działa ten algorytm dla parametrów ogniwa. Model ARX z trzema parametrami jest dokładny dla obwodu RC, a estymator RLS liczy je w każdej sekundzie z prądu i napięcia. W trzydziestej minucie testu rezystancje rosną skokowo o trzydzieści procent, co odpowiada spadkowi temperatury albo starzeniu. Estymator z zapominaniem dochodzi do 23,2 miliomów przy prawdziwej wartości 23,3. Bez zapominania zostaje na 19,9, bo uśrednia całą historię. Wniosek: estymator bez zapominania nigdy nie zauważy starzenia baterii.
 
 ### Slajd 34. Metoda wieloskalowa: dwa dni reprezentują miesiąc
 
@@ -284,7 +284,7 @@ Uczciwy bilans kosztów. Lewy wykres to energia zarządzania termicznego. W Duba
 
 **Mówi: Karol Fabianek** (zmiana prowadzącego)
 
-To najważniejszy wynik z punktu widzenia sterowania odpornego. Model starzenia jest niepewny, więc losujemy pięćdziesiąt pakietów. Zmieniamy współczynniki starzenia, rezystancje, przewodności cieplne i klimat. Losujemy nawet kształt krzywej degradacji. Regulator zna tylko wartości nominalne. Typowy BMS spełnia cel w 72 procentach przypadków, LIFE w 92, a LIFE-ADAPT w 96 procentach. Odchylenie standardowe maleje z 4,1 do 3,0 punktu procentowego, a najgorszy przypadek rośnie z 69,0 do 78,5 procent. Sprzężenie zwrotne od zmierzonego SOH kompensuje błędy modelu. Istotne jest to, że regulator zna tylko wartości nominalne. Analiza sprawdza więc, czy strategia zaprojektowana dla modelu nominalnego spełnia wymaganie dla obiektu, który od tego modelu odbiega.
+To najważniejszy wynik z punktu widzenia sterowania odpornego. Model starzenia jest niepewny, więc losujemy pięćdziesiąt pakietów. Zmieniamy współczynniki starzenia, rezystancje, przewodności cieplne i klimat. Losujemy nawet kształt krzywej degradacji. Regulator zna tylko wartości nominalne. Typowy BMS spełnia cel w 72 procentach przypadków, LIFE w 92, a LIFE-ADAPT w 96 procentach. Odchylenie standardowe maleje z 4,1 do 3,0 punktu procentowego, a najgorszy przypadek rośnie z 69,0 do 78,5 procent. Sprzężenie zwrotne od zmierzonego SOH kompensuje błędy modelu.
 
 ### Slajd 41. NASA B0005: degradacja bliższa liniowej niż pierwiastkowej
 
@@ -296,7 +296,7 @@ Model porównaliśmy z prawdziwymi danymi NASA dla ogniwa B0005. Dopasowujemy mo
 
 **Mówi: Karol Fabianek**
 
-Wyniki sprawdziliśmy drugą, niezależną implementacją w postaci modelu blokowego w Simulinku. Harmonogram nastaw jest w nim tablicą k od rho, a stany przechowują elementy opóźnienia. Sesja przy zerze stopni trwa w obu implementacjach 1544 kroków, a największa różnica temperatury rdzenia wynosi 5e-7 kelwina. Wynika ona wyłącznie z interpolacji tablicy harmonogramu. Wyniki nie zależą więc od sposobu implementacji algorytmu.
+Wyniki sprawdziliśmy drugą, niezależną implementacją w postaci modelu blokowego w Simulinku. Harmonogram nastaw jest w nim tablicą k od rho, a stany przechowują elementy opóźnienia. Sesja przy zerze stopni trwa w obu implementacjach 1544 kroków, a największa różnica temperatury rdzenia wynosi około pięciu dziesięciomilionowych kelwina. Wynika ona wyłącznie z interpolacji tablicy harmonogramu. Wyniki nie zależą więc od sposobu implementacji algorytmu.
 
 > **Pokaz w MATLAB, około 2,5 min.** Skrypt lab5_simulink: otwarcie modelu blokowego, przycisk Run, podgląd bloku Scope z temperaturami i SOC, porównanie ze skryptem w Command Window.
 

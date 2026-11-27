@@ -58,7 +58,7 @@ Projekt działa w MATLAB R2026b bez dodatkowych toolboxów; model blokowy wymaga
 ```
 ├── README.md
 ├── LABORATORIUM.md
-├── Prezentacja/              prezentacja projektu, wykład (.pptx + .pdf), skrypt wystąpień
+├── Prezentacja/              wykład (.pptx i .pdf) i skrypt wykładu
 └── Projekt/
     ├── start_here.m, run_all.m, bms_setup.m
     ├── config/               parametry (wszystkie liczby w bms_params.m)
@@ -69,7 +69,7 @@ Projekt działa w MATLAB R2026b bez dodatkowych toolboxów; model blokowy wymaga
     ├── lab/                  ćwiczenia laboratoryjne lab1–lab5
     ├── simulink/             budowa i walidacja modelu .slx (E09)
     ├── tests/                testy poprawności
-    ├── data/                 NASA B0005
+    ├── data/                 dane NASA B0005 (B0005.mat) i opis źródła
     ├── results/              wyniki CSV + PODSUMOWANIE.md
     ├── figures/              wykresy PNG
     └── docs/                 DOKUMENTACJA.md
