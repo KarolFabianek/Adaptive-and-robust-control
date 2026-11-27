@@ -1,10 +1,12 @@
-# Dokumentacja techniczna projektu BTMS
+# Dokumentacja techniczna projektu
 
-**Sterowanie parametrami ładowania i temperaturą baterii EV dla zachowania co najmniej 80% pojemności po 10 latach**
+**Sterowanie ładowaniem i temperaturą baterii pojazdu elektrycznego z ograniczeniem starzenia**
 
-Karol Fabianek, Paweł Fortuna · Sterowanie adaptacyjne i odporne · Politechnika Opolska, WEAiI
+Cel: co najmniej 80% pojemności baterii po 10 latach eksploatacji.
 
-Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, wygenerowanych w MATLAB R2026b z Simulinkiem. Odtworzysz je poleceniem `run_all`. Ćwiczenia laboratoryjne opisuje [LABORATORIUM.md](../../LABORATORIUM.md), a tekst wystąpień – [Prezentacja/SKRYPT_PREZENTACJI.md](../../Prezentacja/SKRYPT_PREZENTACJI.md).
+Karol Fabianek, Paweł Fortuna, Sterowanie adaptacyjne i odporne, Politechnika Opolska, WEAiI
+
+Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, wygenerowanych w MATLAB R2026b z Simulinkiem. Odtworzysz je poleceniem `run_all`. Ćwiczenia laboratoryjne opisuje [LABORATORIUM.md](../../LABORATORIUM.md), a tekst wystąpień plik [Prezentacja/SKRYPT_PREZENTACJI.md](../../Prezentacja/SKRYPT_PREZENTACJI.md).
 
 ---
 
@@ -30,7 +32,7 @@ Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, w
 | 1 | Żywotność: **SOH ≥ 80% po 10 latach** | symulacja 120 miesięcy, SOH = pojemność / pojemność początkowa |
 | 2 | Utrzymanie pojemności | rozkład strat na starzenie kalendarzowe, cykliczne i litowanie |
 | 3 | Sterowanie parametrami ładowania | prąd DC i AC, napięcie CV, okno SOC, moment ładowania, temperatura ładowania |
-| 4 | Nominalne parametry temperaturowe | Tc < 40°C w pracy, ładowanie DC w oknie ok. 20–35°C, brak litowania anody |
+| 4 | Nominalne parametry temperaturowe | Tc < 40°C w pracy, ładowanie DC w oknie około 20 do 35°C, brak litowania anody |
 
 Obiekt jest ten sam co na wykładzie: pakiet **96s50p** z 4800 ogniw 18650 NMC/grafit (3,6 V; 3,5 Ah; 28 mΩ). Daje to 345,6 V, 175 Ah, 60,48 kWh i 53,76 mΩ.
 
@@ -42,14 +44,14 @@ Projekt rozszerza wykład. Usuwa ograniczenia wskazane na slajdzie 20 wykładu:
 | brak kontroli napięcia | pełne CC-CV, 4,20 V/ogniwo, koniec przy C/20 |
 | rezystancja z funkcji liniowej | R(T) wg Arrheniusa, identyfikacja RLS online (E07) |
 | Tc niemierzalne | obserwator zredukowanego rzędu |
-| brak sprzężenia SOH → R, Qn | co miesiąc SOH skaluje pojemność i rezystancje |
+| brak sprzężenia wpływu SOH na R i Qn | co miesiąc SOH skaluje pojemność i rezystancje |
 | przyjęte współczynniki starzenia | model półempiryczny + Monte Carlo + dane NASA B0005 |
 
 ---
 
 ## 2. Model obiektu
 
-### 2.1 Model elektryczny – ECM 1RC
+### 2.1 Model elektryczny. ECM 1RC
 
 Prąd ładowania jest dodatni. Dla ogniwa:
 
@@ -73,9 +75,9 @@ $$\varphi_{an} = U_{an}(SOC) - I\, R_{an}(T, SOH), \qquad R_{an} = 14\ \mathrm{m
 
 Gdy φ_an < 0 V względem Li/Li⁺, część prądu f_pl = min(0,1; 1 V⁻¹·(−φ_an)) osadza metaliczny lit. Z tego 20% (η_irr) traci się trwale.
 
-> **Ciekawostka.** Przy SOC 80% anoda pracuje tylko ok. 100 mV nad potencjałem litu. Przy 25°C bezpieczny prąd wynosi ok. 1,85C, przy 0°C już tylko 0,29C (`results/e01_plating_map.csv`). Dlatego nawet wolne ładowanie AC (0,18C) zimą do 100% może litować anodę.
+> **Ciekawostka.** Przy SOC 80% anoda pracuje tylko około 100 mV nad potencjałem litu. Przy 25°C bezpieczny prąd wynosi około 1,85C, przy 0°C już tylko 0,29C (`results/e01_plating_map.csv`). Dlatego nawet wolne ładowanie AC (0,18C) zimą do 100% może litować anodę.
 
-### 2.3 Model cieplny – dwa węzły (jak na wykładzie)
+### 2.3 Model cieplny. Dwa węzły (jak na wykładzie)
 
 $$C_c \frac{dT_c}{dt} = \underbrace{I^2 R_0 + U_1^2/R_1}_{\dot Q_{gen}} - G_{cs}(T_c - T_s)$$
 
@@ -88,7 +90,7 @@ Element wykonawczy u ∈ [−1, 1]:
 - chłodzenie (u > 0): Q̇ = min(6,5 kW·u; G_cool·u·(T_s − 18°C)), G_cool = 470 W/K, chiller COP = 2,6;
 - grzanie (u < 0): grzałka PTC 5 kW w obiegu cieczy (sprawność 0,95).
 
-Równania cieplne całkujemy **niejawną metodą Eulera**: w każdym kroku rozwiązujemy układ 2×2. Metoda jest bezwarunkowo stabilna, więc postój symulujemy z krokiem 60 s. Dzięki temu 10 lat eksploatacji liczy się w ok. 9 s (laptop na zasilaczu; na baterii ok. 45 s). Bilans energii jest spełniony z dokładnością 10⁻⁹ J na krok (test T1).
+Równania cieplne całkujemy **niejawną metodą Eulera**: w każdym kroku rozwiązujemy układ 2×2. Metoda jest bezwarunkowo stabilna, więc postój symulujemy z krokiem 60 s. Dzięki temu symulacja 10 lat eksploatacji trwa kilka sekund. Bilans energii jest spełniony z dokładnością 10⁻⁹ J na krok (test T1).
 
 ---
 
@@ -108,7 +110,7 @@ $$1 - SOH = Q_{cal} + Q_{cyc} + Q_{pl}$$
 
 **Kalibracja** (test T10): 9% utraty kalendarzowej po 10 latach w 25°C przy SOC 50%; 12% utraty cyklicznej po 1000 FEC w 25°C przy 1C. Te wartości leżą w typowym zakresie danych literaturowych dla ogniw NMC 18650. Nie są to pomiary konkretnego ogniwa, dlatego w rozdziale 7 badamy wpływ ich niepewności.
 
-> **Ciekawostka – kształt „V”** (Waldmann i in. 2014). Zużycie na jedno ładowanie ma minimum w funkcji temperatury. Lewe ramię tworzy litowanie (zimno), prawe – wzrost SEI (ciepło). Minimum przesuwa się z prądem: **0,5C → 5°C, 1C → 14°C, 1,71C → 22°C** (`results/e01_v_shape.csv`). Im szybciej ładujemy, tym cieplejsza powinna być bateria.
+> **Ciekawostka: kształt V** (Waldmann i in. 2014). Zużycie na jedno ładowanie ma minimum w funkcji temperatury. Lewe ramię tworzy litowanie (zimno), prawe wzrost SEI (ciepło). Minimum przesuwa się z prądem: **0,5C → 5°C, 1C → 14°C, 1,71C → 22°C** (`results/e01_v_shape.csv`). Im szybciej ładujemy, tym cieplejsza powinna być bateria.
 
 ---
 
@@ -134,7 +136,7 @@ Sterowanie ma trzy warstwy o różnych skalach czasu:
  └────────────────────────────────────────────────────┘
 ```
 
-### 4.1 Regulator temperatury – PI z gain schedulingiem (z wykładu)
+### 4.1 Regulator temperatury. PI z gain schedulingiem (z wykładu)
 
 $$e = \hat T_c - T_{ref}, \qquad u = \mathrm{sat}_{[0,1]}\big(K_p(\rho)\, e + z + u_{FF}\big), \qquad u_{FF} = 0{,}7\,\frac{\hat{\dot Q}_{gen}}{6500\ \mathrm W}$$
 
@@ -158,9 +160,9 @@ $$I = \min\big(I_{baza},\ I_{profil}(SOC),\ I_{term}(T_c),\ I_{tab}(T_c),\ I_{an
 |---|---|---|
 | I_baza | wszystkie | DC: 300 A (lub mniej z λ); AC: 11 kW / U |
 | I_profil | STD, wykład | redukcja od 70% SOC do 130 A przy 80% |
-| I_term | SAFE, STD, LIFE | nadzór 36,5 → 39,5°C: 300 → 110 A |
+| I_term | SAFE, STD, LIFE | nadzór od 36,5 do 39,5°C: od 300 do 110 A |
 | I_tab | STD | statyczna tablica C_max(T) typowego BMS |
-| **I_an** | **LIFE** | $I_{an} = n_p\,(U_{an}(SOC) - 15\ \mathrm{mV}) / R_{an}(\hat T_c, \widehat{SOH})$ – największy prąd bez litowania |
+| **I_an** | **LIFE** | $I_{an} = n_p\,(U_{an}(SOC) - 15\ \mathrm{mV}) / R_{an}(\hat T_c, \widehat{SOH})$, największy prąd bez litowania |
 | I_CV | wszystkie | $U \le 4{,}20$ V/ogniwo; koniec, gdy I < C/20 |
 
 Limit I_an wynika z modelu, a nie z tablicy. Sam maleje przy niskiej temperaturze, wysokim SOC i starzeniu (R_an rośnie), więc jest adaptacyjny.
@@ -190,12 +192,12 @@ Trajektoria odniesienia kończy się na 82%, czyli z zapasem 2 p.p. nad celem. W
 
 | Strategia | Chłodzenie | Prąd | AC | Postój | Adaptacja |
 |---|---|---|---|---|---|
-| CC (wykład) | stałe u = 0,2 | profil SOC | – | – | – |
-| PI / GS (wykład) | PI / GS-PI | profil SOC | – | – | – |
-| GS_SAFE (wykład) | GS-PI + FF | profil + nadzór term. | – | – | – |
-| **STD_100 / STD_90** | PI, T_ref = 30°C | profil + nadzór + tablica BMS | od razu do 100 / 90% | – | – |
-| **LIFE** | GS-PI + FF + grzanie | I_an + nadzór + CV | „just in time” do 79% | chłodzenie > 29°C | – |
-| **LIFE_ADAPT** | jak LIFE | jak LIFE | jak LIFE, cel z λ | jak LIFE, próg z λ | **RLS + PI → λ** |
+| CC (wykład) | stałe u = 0,2 | profil SOC | brak | brak | brak |
+| PI / GS (wykład) | PI / GS-PI | profil SOC | brak | brak | brak |
+| GS-SAFE (wykład) | GS-PI + FF | profil + nadzór term. | brak | brak | brak |
+| **STD-100 / STD-90** | PI, T_ref = 30°C | profil + nadzór + tablica BMS | od razu do 100 / 90% | brak | brak |
+| **LIFE** | GS-PI + FF + grzanie | I_an + nadzór + CV | „just in time” do 79% | chłodzenie > 29°C | brak |
+| **LIFE-ADAPT** | jak LIFE | jak LIFE | jak LIFE, cel z λ | jak LIFE, próg z λ | **RLS i PI ustawiają λ** |
 
 ---
 
@@ -203,13 +205,13 @@ Trajektoria odniesienia kończy się na 82%, czyli z zapasem 2 p.p. nad celem. W
 
 ### 5.1 Sesja szybkiego ładowania (E02–E04, E09)
 
-Każda sesja zaczyna się od 15 min jazdy autostradą (30 kW) do ładowarki. W tym czasie LIFE podgrzewa albo schładza pakiet. Potem następuje ładowanie 20 → 80% SOC z krokiem 1 s. Wskaźniki: czas, T_c,max, energia układu termicznego, minimalny potencjał anody, litowanie oraz utrata pojemności na sesję w ppm, liczona przy stanie baterii po ok. 3 latach.
+Każda sesja zaczyna się od 15 min jazdy autostradą (30 kW) do ładowarki. W tym czasie LIFE podgrzewa albo schładza pakiet. Potem następuje ładowanie od 20 do 80% SOC z krokiem 1 s. Wskaźniki: czas, T_c,max, energia układu termicznego, minimalny potencjał anody, litowanie oraz utrata pojemności na sesję w ppm, liczona przy stanie baterii po około 3 latach.
 
-### 5.2 Symulacja 10 lat (E05, E06) – metoda wieloskalowa
+### 5.2 Symulacja 10 lat (E05, E06). Metoda wieloskalowa
 
 W każdym z 120 miesięcy symulujemy dwa reprezentatywne dni:
 
-- **dzień roboczy:** dom z wallboxem 11 kW (00–07), jazda 30 min, praca bez wtyczki (07:30–17), jazda 30 min, dom (17:30–24); 41 km/dzień, 17 kWh/100 km;
+- **dzień roboczy:** dom z wallboxem 11 kW (00 do 07), jazda 30 min, praca bez wtyczki (07:30 do 17), jazda 30 min, dom (17:30 do 24); 41 km/dzień, 17 kWh/100 km;
 - **dzień w trasie (2 razy w miesiącu):** 150 km autostradą (23 kWh/100 km), szybkie ładowanie do 80%, 150 km powrotu.
 
 Stres starzenia doby mnożymy przez liczbę dni. Raz w miesiącu aktualizujemy SOH, które zmienia pojemność i rezystancje w kolejnym miesiącu. Każda strategia przejeżdża ten sam dystans.
@@ -226,7 +228,7 @@ Klimaty (sinusoida roczna i dobowa, przybliżenie średnich klimatycznych):
 
 ## 6. Wyniki
 
-### E01 – charakterystyki modelu
+### E01. Charakterystyki modelu
 
 ![OCV i potencjał anody](../figures/e01_ocv_anode.png)
 ![Rezystancja](../figures/e01_resistance.png)
@@ -234,24 +236,24 @@ Klimaty (sinusoida roczna i dobowa, przybliżenie średnich klimatycznych):
 ![Starzenie kalendarzowe](../figures/e01_calendar_map.png)
 ![Kształt V](../figures/e01_v_shape.png)
 
-### E02 – szybkie ładowanie 20 → 80%
+### E02. Szybkie ładowanie od 20 do 80%
 
 | Strategia | 0°C: czas / T_c,max | 25°C | 35°C | litowanie przy 0°C |
 |---|---|---|---|---|
 | CC | 22,6 min / 30,7°C | 22,6 / 39,4 | 22,6 / 45,1 | 2582 ppm |
 | PI | 22,6 / 32,1 | 22,6 / 35,4 | 22,6 / 36,6 | 2582 ppm |
 | GS | 22,6 / 32,0 | 22,6 / 34,8 | 22,6 / 36,6 | 2582 ppm |
-| GS_SAFE | 22,6 / 30,5 | 22,6 / 32,2 | 22,6 / 36,4 | 2582 ppm |
-| STD_90 | **46,7** / 22,3 | 22,7 / 35,3 | 22,7 / 36,3 | 47 ppm |
+| GS-SAFE | 22,6 / 30,5 | 22,6 / 32,2 | 22,6 / 36,4 | 2582 ppm |
+| STD-90 | **46,7** / 22,3 | 22,7 / 35,3 | 22,7 / 36,3 | 47 ppm |
 | **LIFE** | **21,0** / 31,5 | 21,0 / 32,2 | 21,0 / 32,3 | **0** |
 
-Przy 0°C LIFE zużywa 1,27 kWh na podgrzanie w trasie. W zamian ładuje się 2,2× szybciej niż typowy BMS i w ogóle nie lituje anody. Strategie bez limitu anody tracą przy 0°C ok. 2600 ppm pojemności na jedną sesję. To ok. 38× więcej niż LIFE.
+Przy 0°C LIFE zużywa 1,27 kWh na podgrzanie w trasie. W zamian ładuje się 2,2× szybciej niż typowy BMS i w ogóle nie lituje anody. Strategie bez limitu anody tracą przy 0°C około 2600 ppm pojemności na jedną sesję. To około 38× więcej niż LIFE.
 
 ![Sesja 0°C](../figures/e02_session_0C.png)
 ![Sesja 35°C](../figures/e02_session_35C.png)
 ![Zestawienie](../figures/e02_summary.png)
 
-### E03 – gain scheduling
+### E03. Gain scheduling
 
 | ρ = T_s − T_chill | ω_c PI [mrad/s] | ω_c GS [mrad/s] | PM PI | PM GS |
 |---|---|---|---|---|
@@ -259,26 +261,26 @@ Przy 0°C LIFE zużywa 1,27 kWh na podgrzanie w trasie. W zamian ładuje się 2,
 | 10 K | 1,51 | 2,61 | 91,3° | 88,8° |
 | 17 K (punkt projektowy) | 2,61 | 2,61 | 88,8° | 88,8° |
 
-Przy stałych nastawach pulsacja odcięcia maleje proporcjonalnie do ρ, czyli przy ρ = 6 K regulator PI jest 3× wolniejszy. GS utrzymuje ω_c stałe w zakresie ρ ≥ 5,7 K. Poniżej harmonogram nasyca się na k = 3. Porównanie nieliniowe (sesja 25 → 80% jak na wykładzie): T_c,max PI/GS = 34,11/33,73°C (15°C), 35,29/34,71°C (25°C), 36,17/35,92°C (35°C).
+Przy stałych nastawach pulsacja odcięcia maleje proporcjonalnie do ρ, czyli przy ρ = 6 K regulator PI jest 3× wolniejszy. GS utrzymuje ω_c stałe w zakresie ρ ≥ 5,7 K. Poniżej harmonogram nasyca się na k = 3. Porównanie nieliniowe (sesja od 25 do 80% jak na wykładzie): T_c,max PI/GS = 34,11/33,73°C (15°C), 35,29/34,71°C (25°C), 36,17/35,92°C (35°C).
 
 ![Bode](../figures/e03_bode_gs.png)
 ![Zakłócenie](../figures/e03_disturbance.png)
 
-### E04 – temperatura szybkiego ładowania
+### E04. Temperatura szybkiego ładowania
 
-Gdy bateria ma 5°C, strategia bez limitu anody traci 2247 ppm na sesję. LIFE traci 36 ppm za cenę +8,4 min ładowania. Powyżej ok. 33°C ładowanie hamuje nadzór termiczny. W oknie 17,5–30°C LIFE ładuje się najkrócej (21 min) i bez litowania.
+Gdy bateria ma 5°C, strategia bez limitu anody traci 2247 ppm na sesję. LIFE traci 36 ppm za cenę +8,4 min ładowania. Powyżej około 33°C ładowanie hamuje nadzór termiczny. W oknie 17,5 do 30°C LIFE ładuje się najkrócej (21 min) i bez litowania.
 
 ![Temperatura ładowania](../figures/e04_charge_temperature.png)
 
-### E05 – 10 lat eksploatacji (wynik główny)
+### E05. 10 lat eksploatacji (wynik główny)
 
-| SOH po 10 latach | STD_100 | STD_90 | LIFE | LIFE_ADAPT |
+| SOH po 10 latach | STD-100 | STD-90 | LIFE | LIFE-ADAPT |
 |---|---:|---:|---:|---:|
 | Opole | 81,1% | 85,0% | 87,9% | 87,6% |
 | Madryt | **79,1%** ✗ | 82,3% | 85,2% | 84,6% |
 | Dubaj | **69,2%** ✗ | **72,5%** ✗ | **78,3%** ✗ | **80,8%** ✓ |
 
-| Koszt (Dubaj) | STD_100 | STD_90 | LIFE | LIFE_ADAPT |
+| Koszt (Dubaj) | STD-100 | STD-90 | LIFE | LIFE-ADAPT |
 |---|---:|---:|---:|---:|
 | energia termiczna [kWh/rok] | 28 | 30 | 166 | 396 |
 | średni SOC [%] (zapas zasięgu) | 96,5 | 86,7 | 68,3 | 59,9 |
@@ -286,12 +288,12 @@ Gdy bateria ma 5°C, strategia bez limitu anody traci 2247 ppm na sesję. LIFE t
 
 Najważniejsze obserwacje:
 
-- **W gorącym klimacie dominuje starzenie kalendarzowe:** w Dubaju STD_100 traci 19,8% kalendarzowo. LIFE_ADAPT ogranicza to do 11,0% przez niższy SOC postoju i chłodzenie z sieci, gdy auto stoi z wtyczką.
-- **W zimnym klimacie problemem jest litowanie:** w Opolu STD_100 traci 3,8% przez litowanie przy zimowym ładowaniu AC do 100%. LIFE ma 0% litowania we wszystkich klimatach.
-- **Pętla adaptacyjna rozdziela ochronę tam, gdzie jest potrzebna:** w Opolu i Madrycie λ spada do 0 (SOC do 85%, komfort). W Dubaju λ rośnie do nasycenia λ = 1 po ok. 4 latach. To typowy przykład nasycenia elementu wykonawczego: cel 82% nie jest osiągalny, ale 80% tak.
-- **Uczciwy koszt:** 80% SOH w Dubaju kosztuje ok. 400 kWh/rok energii termicznej (ok. 10% energii jazdy) i średni SOC 60%.
+- **W gorącym klimacie dominuje starzenie kalendarzowe:** w Dubaju STD-100 traci 19,8% kalendarzowo. LIFE-ADAPT ogranicza to do 11,0% przez niższy SOC postoju i chłodzenie z sieci, gdy auto stoi z wtyczką.
+- **W zimnym klimacie problemem jest litowanie:** w Opolu STD-100 traci 3,8% przez litowanie przy zimowym ładowaniu AC do 100%. LIFE ma 0% litowania we wszystkich klimatach.
+- **Pętla adaptacyjna rozdziela ochronę tam, gdzie jest potrzebna:** w Opolu i Madrycie λ spada do 0 (SOC do 85%, komfort). W Dubaju λ rośnie do nasycenia λ = 1 po około 4 latach. To typowy przykład nasycenia elementu wykonawczego: cel 82% nie jest osiągalny, ale 80% tak.
+- **Uczciwy koszt:** 80% SOH w Dubaju kosztuje około 400 kWh/rok energii termicznej (około 10% energii jazdy) i średni SOC 60%.
 
-Uwaga do T_c,max: w Dubaju pakiet nagrzewa się do ok. 41,5°C na parkingu bez wtyczki (otoczenie 42°C). To nie jest efekt ładowania, a BTMS nie działa w uśpieniu.
+Uwaga do T_c,max: w Dubaju pakiet nagrzewa się do około 41,5°C na parkingu bez wtyczki (otoczenie 42°C). To nie jest efekt ładowania, a BTMS nie działa w uśpieniu.
 
 ![SOH](../figures/e05_soh_trajectories.png)
 ![Rozkład strat](../figures/e05_loss_breakdown.png)
@@ -302,7 +304,7 @@ Uwaga do T_c,max: w Dubaju pakiet nagrzewa się do ok. 41,5°C na parkingu bez w
 
 ## 7. Odporność i walidacja
 
-### E06 – Monte Carlo (Madryt, 50 losowych pakietów)
+### E06. Monte Carlo (Madryt, 50 losowych pakietów)
 
 Regulator zna tylko parametry nominalne. „Rzeczywisty” pakiet ma losowe:
 
@@ -315,15 +317,15 @@ Regulator zna tylko parametry nominalne. „Rzeczywisty” pakiet ma losowe:
 
 | Strategia | średnie SOH | odch. std. | min | spełnia cel 80% |
 |---|---:|---:|---:|---:|
-| STD_90 | 81,4% | 4,09 p.p. | 69,0% | 72% |
+| STD-90 | 81,4% | 4,09 p.p. | 69,0% | 72% |
 | LIFE | 85,3% | 3,32 p.p. | 76,7% | 92% |
-| LIFE_ADAPT | 84,9% | 2,98 p.p. | 78,5% | 96% |
+| LIFE-ADAPT | 84,9% | 2,98 p.p. | 78,5% | 96% |
 
-Strategie w pętli otwartej dziedziczą całą niepewność modelu starzenia. LIFE_ADAPT mierzy SOH i koryguje parametry ładowania, więc zawęża rozkład. To jest istota sterowania odpornego przez sprzężenie zwrotne.
+Strategie w pętli otwartej dziedziczą całą niepewność modelu starzenia. LIFE-ADAPT mierzy SOH i koryguje parametry ładowania, więc zawęża rozkład. To jest istota sterowania odpornego przez sprzężenie zwrotne.
 
 ![Monte Carlo](../figures/e06_monte_carlo_madryt.png)
 
-### E07 – identyfikacja online RLS
+### E07. Identyfikacja online RLS
 
 Model ARX y[k] = a·y[k−1] + b₀I[k] + b₁I[k−1] (y = U − OCV) jest dokładny dla ECM 1RC. Parametry: R₀ = b₀, τ = −Δt/ln a, R₁ = (b₁ + a·b₀)/(1 − a). W 30. minucie rezystancje rosną skokowo o 30%.
 
@@ -337,7 +339,7 @@ Estymator bez zapominania (λ = 1) nie nadąża za zmianą, bo „pamięta” ca
 
 ![RLS](../figures/e07_rls_identification.png)
 
-### E08 – dane NASA B0005
+### E08. Dane NASA B0005
 
 Dane: ogniwo 18650 (2 Ah), cykle w 24°C, 168 rozładowań. Model Q(n) = Q₀ − b·nᶻ dopasowany na 70% cykli i sprawdzony na pozostałych 30%:
 
@@ -351,29 +353,29 @@ Najlepiej na danych testowych wypada model liniowy (z = 1). Dopasowany wykładni
 
 ![NASA](../figures/e08_nasa_B0005.png)
 
-### E09 – Simulink vs MATLAB
+### E09. Simulink i MATLAB
 
 Model `simulink/btms_life_simulink.slx` buduje skrypt `build_btms_simulink.m`. Harmonogram GS to standardowy blok *1-D Lookup Table*. Bloki MATLAB Function wywołują te same funkcje co skrypty. Sesja LIFE przy 0°C: Simulink 1544 kroków, MATLAB 1544 kroków; max |ΔTc| = 5.0e-07 K, |ΔTs| = 7.5e-07 K, |ΔSOC| = 0.0e+00, |ΔI| = 0.0e+00 A, |Δu| = 7.4e-07. Czas ładowania: 25,7 min w obu narzędziach. Różnice wynikają tylko z interpolacji tablicy GS i są pomijalne.
 
 ![Simulink](../figures/e09_simulink_diagram.png)
-![Simulink vs MATLAB](../figures/e09_simulink_vs_matlab_0C.png)
+![Simulink i MATLAB](../figures/e09_simulink_vs_matlab_0C.png)
 
 ### Testy poprawności (`run_tests`)
 
 | test | wynik | wartość |
 |---|---|---|
-| T1 bilans energii (maks. reszta kroku < 1e-6 J) | OK | 1.68e-09 J |
-| T2 bilans ładunku (|int I dt - dSOC| < 1e-9) | OK | 9.88e-15 |
-| T3 zbieżność kroku (|dTmax| < 0.05 K) | OK | 0.000 K |
-| T4 stabilność przy dt = 600 s (monotoniczne stygnięcie) | OK | T_end = 10.000 °C |
-| T5 faza CV: U_ogniwa <= 4.20 V + 2 mV | OK | U_max = 4.2000 V |
-| T6 LIFE: phi_anody >= 0 mV we wszystkich klimatach | OK | phi_min = 11.0 mV |
-| T7 harmonogram GS: k(17 K) = 1, k(2 K) = 3 | OK |  |
-| T8 obserwator: |Tc - Tc_hat| < 0.1 K po 10 min | OK | 0.0841 K |
-| T9 starzenie rośnie z T, SOC i C-rate | OK | 35°C: x2.05, SOC 90%: x1.84, 2C vs 1C: x1.42 |
-| T10 kalibracja: Q_cal(10 lat, 25°C, 50%) = 9% | OK | 0.0900 |
-| T11 powtarzalność (to samo ziarno -> ten sam wynik) | OK | SOH(1 rok) = 0.96243 |
-| T12 pakiet 96s50p: 175 Ah, 60.48 kWh, 53.76 mOhm | OK |  |
+| T1 bilans energii, reszta w kroku poniżej 1e-6 J | OK | 1.68e-09 J |
+| T2 bilans ładunku, całka prądu równa zmianie SOC | OK | 9.88e-15 |
+| T3 zbieżność względem kroku, różnica Tc,max poniżej 0,05 K | OK | 0.000 K |
+| T4 stabilność przy kroku 600 s, monotoniczne stygnięcie | OK | T_end = 10.000 °C |
+| T5 faza CV, napięcie ogniwa nie przekracza 4,202 V | OK | U_max = 4.2000 V |
+| T6 strategia LIFE, potencjał anody nieujemny od -10 do 25°C | OK | phi_min = 11.0 mV |
+| T7 harmonogram GS, k(17 K) = 1 i k(2 K) = 3 | OK |  |
+| T8 obserwator, błąd estymacji Tc poniżej 0,1 K po 10 min | OK | 0.0841 K |
+| T9 starzenie rośnie z temperaturą, SOC i prądem | OK | 35°C: 2.05, SOC 90%: 1.84, 2C: 1.42 raza |
+| T10 kalibracja, starzenie kalendarzowe 9% po 10 latach w 25°C | OK | 0.0900 |
+| T11 powtarzalność, to samo ziarno daje ten sam wynik | OK | SOH(1 rok) = 0.96243 |
+| T12 pakiet 96s50p, 175 Ah, 60,48 kWh, 53,76 mOhm | OK |  |
 
 ---
 
@@ -406,7 +408,7 @@ Projekt/
 │             simulate_session.m, simulate_day.m, simulate_lifetime.m
 │             climate_profile.m, ambient_temp.m, init_state.m
 ├── experiments/ exp01 … exp08, perturb_params.m
-├── lab/      lab1 … lab5 – ćwiczenia laboratoryjne (opis: LABORATORIUM.md)
+├── lab/      lab1 do lab5, ćwiczenia laboratoryjne (opis: LABORATORIUM.md)
 ├── simulink/ build_btms_simulink.m, run_simulink_validation.m, btms_life_simulink.slx
 ├── tests/    run_tests.m
 ├── utils/    lin_interp.m, plot_style.m, save_fig.m, save_csv.m

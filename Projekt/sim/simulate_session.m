@@ -1,23 +1,24 @@
 function [res, log] = simulate_session(P, cfg, opts, Pc)
-%SIMULATE_SESSION  Sesja szybkiego ładowania DC (opcjonalnie z dojazdem do stacji).
+%SIMULATE_SESSION  Sesja szybkiego ładowania DC, opcjonalnie z dojazdem do ładowarki.
 %
 %   [res, log] = simulate_session(P, cfg, opts)
-%   [res, log] = simulate_session(P, cfg, opts, Pc)   % Pc – model w regulatorze
+%   [res, log] = simulate_session(P, cfg, opts, Pc)    Pc to model znany regulatorowi
 %
-%   opts (pola opcjonalne):
-%     Ta         temperatura otoczenia [°C]               (25)
-%     T0         temperatura pakietu na początku [°C]     (= Ta)
-%     soc_plug   SOC przy podłączeniu                     (0.25 – jak na wykładzie)
-%     soc_target SOC docelowy                             (0.80)
-%     drive_s    czas jazdy do stacji (autostrada) [s]    (900; 0 = bez dojazdu)
-%     A          stan starzenia (aging_init)              (nowa bateria)
-%     A_ref      stan odniesienia do liczenia utraty pojemności na sesję
-%     dt         krok [s]                                 (1)
-%     t_max      maks. czas ładowania [s]                 (7200)
+%   Pola opts (wszystkie opcjonalne, w nawiasie wartość domyślna):
+%     Ta          temperatura otoczenia [°C] (25)
+%     T0          temperatura pakietu na początku [°C] (równa Ta)
+%     soc_plug    SOC przy podłączeniu (0,25 jak na wykładzie)
+%     soc_target  docelowy SOC (0,80)
+%     drive_s     czas jazdy autostradą do ładowarki [s] (900, 0 bez dojazdu)
+%     A           stan starzenia (nowa bateria)
+%     A_ref       stan, dla którego liczona jest utrata pojemności na sesję
+%     dt          krok [s] (1)
+%     t_max       największy czas ładowania [s] (7200)
 %
-%   res – wskaźniki: t_charge_min, Tc_max, E_TM_kWh, dQ_ppm (utrata pojemności
-%         na sesję w ppm przy stanie A_ref), Q_pl_ppm, soc_plug, soc_end, ...
-%   log – przebiegi czasowe (t < 0: dojazd z podgrzewaniem, t >= 0: ładowanie)
+%   res zawiera wskaźniki sesji: czas ładowania, maksymalną temperaturę
+%   rdzenia, energię układu termicznego, minimalny potencjał anody,
+%   litowanie i utratę pojemności [ppm]. log zawiera przebiegi czasowe:
+%   dla t < 0 dojazd do ładowarki, dla t >= 0 ładowanie.
 
 if nargin < 4, Pc = P; end
 d = struct('Ta', 25, 'soc_plug', 0.25, 'soc_target', 0.80, 'drive_s', 900, ...
@@ -28,12 +29,12 @@ for k = 1:numel(f)
 end
 if ~isfield(opts, 'T0'), opts.T0 = opts.Ta; end
 if ~isfield(opts, 'A_ref')
-    opts.A_ref = aging_update(P, aging_init(), [3*365, 180, 0]); % ok. 3 lata eksploatacji
+    opts.A_ref = aging_update(P, aging_init(), [3*365, 180, 0]); % około 3 lata eksploatacji
 end
 dt = opts.dt;
 A = opts.A;
 
-% SOC na starcie dojazdu tak, aby przy wtyczce było ok. soc_plug
+% SOC na początku dojazdu dobrany tak, aby przy ładowarce wynosił około soc_plug
 soc0 = opts.soc_plug + P.P_highway*opts.drive_s/3600/1000/(P.E_pack_kWh*A.SOH);
 st = init_state(opts.T0, soc0, A.SOH);
 

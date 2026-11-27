@@ -1,23 +1,24 @@
 function cfg = strategy_config(P, name, lambda)
-%STRATEGY_CONFIG  Konfiguracja strategii ładowania i zarządzania termicznego.
+%STRATEGY_CONFIG  Konfiguracja strategii ładowania i zarządzania temperaturą.
 %
-%   cfg = strategy_config(P, name)          – lambda = P.lambda0
+%   cfg = strategy_config(P, name)           poziom ochrony lambda = P.lambda0
 %   cfg = strategy_config(P, name, lambda)
 %
-%   Strategie sesyjne (z wykładu, porównanie regulatorów chłodzenia):
-%     'CC'       stałe chłodzenie u = 0.2, profil prądu bez nadzoru
-%     'PI'       regulator PI o stałych nastawach
-%     'GS'       PI z gain schedulingiem po rho = Ts - Tchill
-%     'GS_SAFE'  GS + feedforward + nadzór termiczny prądu
-%   Strategie całego życia baterii (cel projektu: SOH >= 80% po 10 latach):
-%     'STD_100'    typowy BMS: tablice statyczne, ładowanie AC do 100% od razu
-%     'STD_90'     jak wyżej, limit 90%
-%     'LIFE'       proponowana: GS+FF, limit prądu z potencjału anody,
-%                  podgrzewanie przed DC, ładowanie AC „na czas wyjazdu”,
-%                  ochrona termiczna na postoju – stały poziom ochrony lambda
-%     'LIFE_ADAPT' LIFE + nadrzędna pętla SOH (RLS + PI) adaptująca lambda
+%   Strategie z wykładu (porównanie regulatorów chłodzenia):
+%     CC          stałe chłodzenie u = 0,2 i profil prądu bez nadzoru
+%     PI          regulator PI o stałych nastawach
+%     GS          regulator PI z harmonogramem nastaw według rho = Ts - Tchill
+%     GS_SAFE     GS z kompensacją strat cieplnych i nadzorem prądu
+%   Strategie dla 10 lat eksploatacji:
+%     STD_100     typowy BMS: tablica prądu, ładowanie AC do 100% od razu
+%     STD_90      jak STD_100, ładowanie do 90%
+%     LIFE        GS z kompensacją, limit prądu z potencjału anody,
+%                 podgrzewanie przed szybkim ładowaniem, ładowanie AC
+%                 kończone przed wyjazdem, chłodzenie auta podłączonego
+%                 do ładowarki, stały poziom ochrony lambda
+%     LIFE_ADAPT  LIFE z pętlą SOH, która zmienia lambda
 %
-%   lambda (0..1) – poziom ochrony baterii: 0 = maks. komfort, 1 = maks. ochrona.
+%   lambda od 0 do 1: 0 to największy komfort, 1 to największa ochrona baterii.
 
 if nargin < 3, lambda = P.lambda0; end
 

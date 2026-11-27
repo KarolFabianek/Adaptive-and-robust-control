@@ -1,6 +1,6 @@
 function save_fig(fig, name)
-%SAVE_FIG  Zapis wykresu do figures/<name>.png (200 dpi) i zamknięcie okna
-%   w trybie wsadowym. W trybie interaktywnym okno pozostaje otwarte.
+%SAVE_FIG  Zapis wykresu do pliku figures/<name>.png w rozdzielczości 200 dpi.
+%   W trybie wsadowym okno jest zamykane, w trybie interaktywnym zostaje.
 root = fileparts(fileparts(mfilename('fullpath')));
 f = fullfile(root, 'figures', [name '.png']);
 try

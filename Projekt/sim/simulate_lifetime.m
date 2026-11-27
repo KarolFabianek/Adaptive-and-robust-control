@@ -1,22 +1,22 @@
 function [T, info] = simulate_lifetime(P, strategy, climate, opts, Pc)
-%SIMULATE_LIFETIME  Symulacja 10 lat eksploatacji: starzenie + sterowanie.
+%SIMULATE_LIFETIME  Symulacja 10 lat eksploatacji ze starzeniem i sterowaniem.
 %
 %   [T, info] = simulate_lifetime(P, strategy, climate)
 %   [T, info] = simulate_lifetime(P, strategy, climate, opts, Pc)
-%     strategy – 'STD_100' | 'STD_90' | 'LIFE' | 'LIFE_ADAPT'
-%     climate  – 'opole' | 'madryt' | 'dubaj'
-%     opts.seed   – ziarno szumu pomiaru SOH (domyślnie 1)
-%     opts.dT_amb – przesunięcie klimatu [K] (domyślnie 0)
-%     opts.years  – horyzont [lata] (domyślnie P.years)
-%     Pc – parametry modelu w regulatorach (domyślnie = P)
+%     strategy     'STD_100', 'STD_90', 'LIFE' albo 'LIFE_ADAPT'
+%     climate      'opole', 'madryt' albo 'dubaj'
+%     opts.seed    ziarno szumu pomiaru SOH (domyślnie 1)
+%     opts.dT_amb  przesunięcie temperatury klimatu [K] (domyślnie 0)
+%     opts.years   horyzont [lata] (domyślnie P.years)
+%     Pc           parametry modelu znane regulatorom (domyślnie P)
 %
-%   Metoda wieloskalowa: w każdym miesiącu symulowany jest dokładnie jeden
-%   reprezentatywny dzień roboczy i jeden dzień w trasie (z szybkim
-%   ładowaniem). Stres starzenia doby jest skalowany liczbą dni w miesiącu
-%   i raz w miesiącu aktualizuje stan zdrowia baterii. Nowe SOH wpływa
-%   na pojemność i rezystancję w kolejnym miesiącu (sprzężenie SOH -> R, Q).
+%   Metoda wieloskalowa: w każdym miesiącu symulowany jest jeden dzień
+%   roboczy i jeden dzień w trasie z szybkim ładowaniem. Stres starzenia
+%   z doby mnożony jest przez liczbę dni w miesiącu. Raz w miesiącu
+%   aktualizowany jest stan zdrowia, który zmienia pojemność i rezystancję
+%   w kolejnym miesiącu.
 %
-%   T – tabela miesięczna, info – podsumowanie (SOH_10y itd.).
+%   T zawiera wyniki miesięczne, info podsumowanie (między innymi SOH_10y).
 
 if nargin < 4 || isempty(opts), opts = struct(); end
 if nargin < 5, Pc = P; end
@@ -34,7 +34,7 @@ n_m = round(12*opts.years);
 days_m = 365/12;
 n_dc = P.dc_per_month;
 
-% stan początkowy: 1 stycznia, pakiet w temperaturze otoczenia, SOC = cel AC
+% Stan początkowy: 1 stycznia, pakiet w temperaturze otoczenia, SOC równy celowi ładowania AC
 st = init_state(ambient_temp(C, 1, 0, opts.dT_amb), cfg.soc_ac, 1);
 
 cols = {'t_years','SOH','SOH_hat','Q_cal','Q_cyc','Q_pl','lambda','soc_ac','I_cap', ...
@@ -53,7 +53,7 @@ for m = 1:n_m
     S_m = n_norm*Dn.S + n_dc*Dt.S;
     A = aging_update(P, A, S_m);
 
-    % „pomiar” pojemności (estymator w BMS) + nadrzędna pętla SOH
+    % Pomiar pojemności przez BMS i nadrzędna pętla SOH
     t_y = m/12;
     SOH_meas = A.SOH + P.sigma_soh_meas*randn(rs);
     [sup, lam] = soh_supervisor(Pc, sup, SOH_meas, t_y);

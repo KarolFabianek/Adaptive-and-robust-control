@@ -1,19 +1,19 @@
 function [Pp, d] = perturb_params(P, rs)
-%PERTURB_PARAMS  Losowanie parametrów „rzeczywistego” pakietu (Monte Carlo).
+%PERTURB_PARAMS  Losowanie parametrów pakietu w analizie Monte Carlo.
 %
-%   Regulator zna tylko wartości nominalne P; obiekt ma parametry Pp.
-%   Rozrzuty (1 sigma lub zakres) odpowiadają typowej niepewności
-%   modeli starzenia i rozrzutowi produkcyjnemu:
-%     k_cal, k_cyc  x lognormal(0, 0.30)   – największa niepewność
-%     Ea_cal        x N(1, 0.05)
-%     R0, R1, R_an  x U(0.85, 1.15)
-%     Gcs, Gcool    x U(0.80, 1.20)
-%     k_pl          x U(0.5, 2.0)
-%     dT_amb        U(-2, +2) K            – inny rok / mikroklimat
-%     z_cyc         {0.5, 1.0} z p. 50%    – niepewność STRUKTURY modelu:
-%                   pierwiastkowa vs liniowa degradacja cykliczna (dane NASA
-%                   B0005 wskazują raczej na przebieg liniowy, E08); k_cyc
-%                   przeskalowane tak, by 1000 FEC dawało tę samą utratę
+%   Regulator zna tylko wartości nominalne P, a obiekt ma parametry Pp.
+%   Rozrzuty odpowiadają typowej niepewności modeli starzenia i rozrzutowi
+%   produkcyjnemu:
+%     k_cal, k_cyc   mnożnik o rozkładzie logarytmiczno-normalnym, sigma 0,3
+%     Ea_cal         mnożnik o rozkładzie normalnym, 1 +/- 0,05
+%     R0, R1, R_an   mnożnik równomierny od 0,85 do 1,15
+%     Gcs, Gcool     mnożnik równomierny od 0,80 do 1,20
+%     k_pl           mnożnik równomierny od 0,5 do 2
+%     dT_amb         przesunięcie klimatu równomierne od -2 do +2 K
+%     z_cyc          0,5 albo 1 z prawdopodobieństwem 50%, czyli niepewność
+%                    kształtu degradacji cyklicznej (dane NASA B0005 wskazują
+%                    na przebieg liniowy, E08). k_cyc jest przeskalowane tak,
+%                    aby 1000 cykli dawało tę samą utratę pojemności.
 d.k_cal = exp(0.30*randn(rs));
 d.k_cyc = exp(0.30*randn(rs));
 d.Ea_cal = 1 + 0.05*randn(rs);

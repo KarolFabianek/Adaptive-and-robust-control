@@ -1,25 +1,20 @@
 function [sup, lambda] = soh_supervisor(P, sup, SOH_meas, t_years)
-%SOH_SUPERVISOR  Nadrzędna (wolna) pętla sterowania trwałością baterii.
+%SOH_SUPERVISOR  Nadrzędna pętla sterowania trwałością baterii (raz w miesiącu).
 %
-%   Pętla działa raz w miesiącu. Składa się z dwóch elementów:
+%   1. Estymator RLS z zapominaniem dopasowuje lokalny model
+%      SOH(t) = th1 + th2 t do zaszumionych pomiarów pojemności. Daje
+%      bieżący poziom SOH_hat i tempo degradacji dSOH/dt [1/rok].
+%   2. Regulator PI porównuje SOH_hat z trajektorią odniesienia SOH_ref(t)
+%      i ustawia poziom ochrony lambda z przedziału od 0 do 1:
+%          e      = SOH_ref(t) - SOH_hat   (e > 0 oznacza zbyt szybkie starzenie)
+%          lambda = lambda0 + Kp e + Ki sum(e), ograniczone do [0, 1]
+%      W nasyceniu całkowanie jest wstrzymane (anti-windup).
 %
-%   1) Estymator RLS z zapominaniem (lambda_f) dopasowuje lokalny model
-%      SOH(t) = th1 + th2 t do zaszumionych pomiarów pojemności (np. z
-%      liczenia ładunku między spoczynkowymi punktami OCV). Daje poziom
-%      SOH_hat i bieżące tempo degradacji dSOH/dt [1/rok].
+%   Poziom ochrony lambda zmienia parametry ładowania (apply_lambda).
+%   Sprzężenie zwrotne od zmierzonego SOH zmniejsza wpływ błędów modelu
+%   starzenia na wynik (eksperyment E06).
 %
-%   2) Regulator PI „budżetu zdrowia”: porównuje SOH_hat z trajektorią
-%      odniesienia SOH_ref(t), która kończy się na P.SOH_target_10y po
-%      10 latach, i ustawia poziom ochrony lambda (0..1):
-%          e      = SOH_ref(t) - SOH_hat      (e > 0: bateria starzeje się za szybko)
-%          lambda = sat( lambda0 + Kp e + Ki sum(e) )
-%      Anti-windup: całkowanie zatrzymane w nasyceniu lambda.
-%
-%   Zmienna sterująca lambda przestawia parametry ładowania (apply_lambda).
-%   To sprzężenie zwrotne „po zdrowiu” czyni strategię odporną na
-%   niepewność współczynników starzenia (patrz eksperyment E06).
-%
-%   sup – stan: theta (2x1), Pcov (2x2), integ, lambda, soh_hat, rate.
+%   Stan sup zawiera pola theta, Pcov, integ, lambda, soh_hat i rate.
 
 if isempty(sup)
     sup.theta = [1; 0];
@@ -30,7 +25,7 @@ if isempty(sup)
     sup.rate = 0;
 end
 
-% --- RLS z zapominaniem ---
+% Estymator RLS z zapominaniem
 phi = [1; t_years];
 lf  = P.rls_lambda;
 K   = sup.Pcov*phi/(lf + phi'*sup.Pcov*phi);
@@ -39,11 +34,11 @@ sup.Pcov  = (sup.Pcov - K*phi'*sup.Pcov)/lf;
 sup.soh_hat = phi'*sup.theta;
 sup.rate    = sup.theta(2);
 
-% --- PI budżetu zdrowia ---
+% Regulator PI
 e = soh_reference(P, t_years) - sup.soh_hat;
 lam_unsat = P.lambda0 + P.Kp_lam*e + P.Ki_lam*(sup.integ + e);
 if (lam_unsat > 1 && e > 0) || (lam_unsat < 0 && e < 0)
-    % nasycenie – nie całkujemy
+    % Nasycenie: całkowanie wstrzymane
 else
     sup.integ = sup.integ + e;
 end

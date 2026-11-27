@@ -1,18 +1,20 @@
 function [st, rec, S] = bms_step(P, Pc, cfg, st, seg, Ta, dt)
-%BMS_STEP  Jeden krok zamkniętego układu: regulatory + obserwator + pakiet + starzenie.
+%BMS_STEP  Jeden krok układu zamkniętego: regulatory, obserwator, pakiet i starzenie.
 %
 %   [st, rec, S] = bms_step(P, Pc, cfg, st, seg, Ta, dt)
-%     P   – parametry OBIEKTU (rzeczywisty pakiet, np. zaburzony w Monte Carlo)
-%     Pc  – parametry MODELU w regulatorze (nominalne)
-%     cfg – strategia (strategy_config)
-%     st  – stan: x=[Tc;Ts;SOC;V1], z (integrator PI), Tc_hat (obserwator),
+%     P     parametry obiektu (pakiet rzeczywisty, w Monte Carlo zaburzony)
+%     Pc    parametry modelu znane regulatorowi (nominalne)
+%     cfg   strategia (strategy_config)
+%     st    stan: x = [Tc; Ts; SOC; V1], z (integrator), Tc_hat (obserwator),
 %           guard_on (histereza chłodzenia na postoju), SOH (rzeczywiste),
-%           SOH_hat (estymata dla regulatora), charging (flaga ładowania AC)
-%     seg – tryb: seg.mode = 1 jazda, 2 ładowanie DC, 3 postój z wtyczką,
-%           4 postój bez wtyczki; seg.P_drive [W]; seg.soc_target;
-%           seg.charge_en (AC dozwolone); seg.precond (podgrzewanie przed DC)
+%           SOH_hat (estymata używana przez regulator), charging (trwa
+%           ładowanie AC)
+%     seg   tryb pracy: seg.mode = 1 jazda, 2 ładowanie DC, 3 postój
+%           z ładowarką, 4 postój bez ładowarki. Pola P_drive [W],
+%           soc_target, charge_en (zgoda na ładowanie AC) i precond
+%           (podgrzewanie przed szybkim ładowaniem).
 %   rec = [I, u, Tc, Ts, SOC, V_cell, Q_gen, Q_act, P_aux, phi_an, f_pl, Tc_hat, bal]
-%   S   = [dt_eq, dFEC_eq, dQ_pl]  (przyrosty stresu starzenia)
+%   S   = [dt_eq, dFEC_eq, dQ_pl], przyrosty stresu starzenia
 
 x = st.x;
 soc = x(3);
@@ -54,10 +56,10 @@ switch seg.mode
                 P_extra = P.P_standby;
             end
         end
-    otherwise % postój bez wtyczki – układ uśpiony
+    otherwise % postój bez ładowarki, układ uśpiony
 end
 
-% estymowane straty (model regulatora, stan ustalony R0+R1)
+% Straty cieplne estymowane przez regulator (stan ustalony, R0 + R1)
 [R0c, R1c] = cell_resistance(Pc, st.Tc_hat, soc, st.SOH_hat);
 Qgen_hat = P.ns*P.np*(I/P.np)^2*(R0c + R1c);
 

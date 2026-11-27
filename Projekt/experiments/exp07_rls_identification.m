@@ -1,23 +1,19 @@
 function T = exp07_rls_identification()
-%EXP07_RLS_IDENTIFICATION  E07 – identyfikacja online modelu ECM metodą RLS.
+%EXP07_RLS_IDENTIFICATION  E07. Identyfikacja online parametrów ogniwa metodą RLS.
 %
-%   Ogniwo ECM 1RC w dyskretnej postaci ARX (dokładnej dla 1RC):
-%       y_k = a y_{k-1} + b0 I_k + b1 I_{k-1},     y = V - OCV(SOC)
-%       R0 = b0,  tau = -dt/ln(a),  R1 = (b1 + a b0)/(1 - a)
-%   Pobudzenie: dynamiczny profil prądu jazdy (1 h, krok 1 s), szum
-%   pomiaru napięcia 1 mV i prądu 10 mA. W 30. minucie rezystancje skokowo
-%   rosną o 30% (np. spadek temperatury / starzenie). Porównujemy RLS
-%   z zapominaniem (lambda = 0.995, pamięć ok. 200 s) i bez zapominania (lambda = 1).
-%
-%   To jest „oko” adaptacyjnego BMS: estymata R0 i R1 pozwala aktualizować
-%   limit prądu z potencjału anody i SOH (R rośnie wraz ze starzeniem).
+%   Model 1RC zapisany jako model ARX, który dla tej struktury jest dokładny:
+%       y(k) = a y(k-1) + b0 I(k) + b1 I(k-1),   y = U - OCV(SOC)
+%       R0 = b0,   tau = -dt/ln(a),   R1 = (b1 + a b0)/(1 - a)
+%   Pobudzenie to losowy profil prądu jazdy (1 h, krok 1 s) z szumem pomiaru
+%   napięcia 1 mV i prądu 10 mA. W 30. minucie rezystancje rosną skokowo
+%   o 30%, co odpowiada spadkowi temperatury albo starzeniu ogniwa.
+%   Porównanie: RLS z zapominaniem (lambda = 0,995) i bez zapominania.
 P = bms_params();
 S = plot_style();
 fprintf('\n=== E07: identyfikacja RLS parametrów ECM ===\n');
 rs = RandStream('mt19937ar', 'Seed', 7);
 dt = 1; N = 3600; t = (0:N-1)'*dt;
-% profil prądu ogniwa: losowe odcinki stałe (5–90 s), -4…+2 A
-% (odcinki porównywalne z tau = 40 s – pobudzenie „trwałe” dla gałęzi RC)
+% Profil prądu ogniwa: odcinki stałe o długości 5 do 90 s, od -4 do +2 A.
 I = zeros(N, 1); k = 1;
 while k <= N
     L = randi(rs, [5 90]);
@@ -65,20 +61,22 @@ T = table({'R0 [mOhm]'; 'R1 [mOhm]'; 'tau [s]'}, ...
 save_csv(T, 'e07_rls_identification');
 disp(T);
 
-fig = figure('Position', [60 60 1150 600]);
-tiledlayout(2, 2, 'TileSpacing', 'compact');
+fig = figure('Position', [60 60 1250 650]);
+tl = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+title(tl, 'Identyfikacja parametrów ogniwa metodą RLS (skok rezystancji o 30% w 30. minucie)', ...
+    'FontWeight', 'bold', 'FontSize', 14);
 nexttile; plot(t/60, I, 'Color', S.grey, 'LineWidth', 0.8);
-ylabel('I_{ogniwa} [A]'); xlabel('Czas [min]'); title('Pobudzenie: profil jazdy (ogniwo)');
+ylabel('I [A]'); xlabel('Czas [min]'); title('Prąd ogniwa (pobudzenie)');
 nexttile; plot(t/60, 1e3*R0t, 'k', 'LineWidth', 2.5); hold on
 plot(t/60, 1e3*est(:,1,1), 'Color', S.blue); plot(t/60, 1e3*est(:,1,2), '--', 'Color', S.orange);
 ylim([10 35]); ylabel('R_0 [m\Omega]'); xlabel('Czas [min]');
-legend('prawdziwa', 'RLS \lambda = 0,995', 'RLS \lambda = 1 (bez zapominania)', 'Location', 'northwest');
-title('Rezystancja omowa R_0 – skok +30% w 30. minucie');
+legend('wartość rzeczywista', 'RLS, \lambda = 0,995', 'RLS, \lambda = 1', 'Location', 'northwest');
+title('Rezystancja omowa R_0');
 nexttile; plot(t/60, 1e3*R1t, 'k', 'LineWidth', 2.5); hold on
 plot(t/60, 1e3*est(:,2,1), 'Color', S.blue); plot(t/60, 1e3*est(:,2,2), '--', 'Color', S.orange);
 ylim([0 25]); ylabel('R_1 [m\Omega]'); xlabel('Czas [min]'); title('Rezystancja polaryzacji R_1');
 nexttile; yline(P.tau1, 'k', 'LineWidth', 2.5); hold on
 plot(t/60, est(:,3,1), 'Color', S.blue); plot(t/60, est(:,3,2), '--', 'Color', S.orange);
-ylim([0 100]); ylabel('\tau [s]'); xlabel('Czas [min]'); title('Stała czasowa \tau = R_1C_1');
+ylim([0 100]); ylabel('\tau [s]'); xlabel('Czas [min]'); title('Stała czasowa \tau = R_1 C_1');
 save_fig(fig, 'e07_rls_identification');
 end

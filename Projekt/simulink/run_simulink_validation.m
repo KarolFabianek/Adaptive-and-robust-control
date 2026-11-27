@@ -1,16 +1,15 @@
 function T = run_simulink_validation(Ta)
-%RUN_SIMULINK_VALIDATION  E09 – symulacja w Simulinku i porównanie z MATLAB-em.
+%RUN_SIMULINK_VALIDATION  E09. Model Simulink i porównanie ze skryptem MATLAB.
 %
-%   T = run_simulink_validation(Ta)   (domyślnie Ta = 0°C – z podgrzewaniem)
+%   T = run_simulink_validation(Ta)   domyślnie Ta = 0°C (z podgrzewaniem)
 %
-%   1) buduje model btms_life_simulink.slx (jeśli nie istnieje),
-%   2) uruchamia sesję szybkiego ładowania 20 -> 80% dla strategii LIFE,
-%   3) uruchamia tę samą sesję skryptem simulate_session,
-%   4) porównuje przebiegi (maks. różnice) i rysuje wykres.
+%   Funkcja buduje model btms_life_simulink.slx, jeśli go nie ma, uruchamia
+%   sesję szybkiego ładowania od 20 do 80% SOC dla strategii LIFE, powtarza tę
+%   samą sesję funkcją simulate_session i porównuje przebiegi.
 if nargin < 1, Ta = 0; end
 P = bms_params();
 S = plot_style();
-fprintf('\n=== E09: Simulink vs MATLAB (Ta = %d°C) ===\n', Ta);
+fprintf('\n=== E09: model Simulink i skrypt MATLAB, Ta = %d°C ===\n', Ta);
 here = fileparts(mfilename('fullpath'));
 model = 'btms_life_simulink';
 if ~exist(fullfile(here, [model '.slx']), 'file')
@@ -28,13 +27,14 @@ simp.x0 = [Ta; Ta; 0.20; 0];
 simp.t_stop = 7200;
 simp.T_heat = -1e9;
 if cfg.precond, simp.T_heat = P.T_precond; end
-% harmonogram GS jako tablica (gęsta siatka – błąd interpolacji < 1e-3)
+% Harmonogram GS jako tablica na gęstej siatce (błąd interpolacji poniżej 1e-3)
 simp.gs_rho_bp = -10:0.02:60;
 simp.gs_k_tab = arrayfun(@(r) gs_k(P, r), simp.gs_rho_bp);
 
 load_system(fullfile(here, [model '.slx']));
-try   % zrzut schematu blokowego do raportu
-    print(['-s' model], '-dpng', '-r150', fullfile(fileparts(here), 'figures', 'e09_simulink_diagram.png'));
+try
+    % Zrzut schematu blokowego do raportu
+    print(['-s' model], '-dpng', '-r220', fullfile(fileparts(here), 'figures', 'e09_simulink_diagram.png'));
     disp('   wykres: figures/e09_simulink_diagram.png');
 catch
 end
@@ -44,7 +44,7 @@ tic;
 so = sim(si);
 t_sl = toc;
 close_system(model, 0);
-xs = so.log_x; ys = so.log_y; Is = so.log_I; us = so.log_u;
+xs = so.log_x; Is = so.log_I; us = so.log_u;
 n_sl = size(xs, 1);
 
 [r, lg] = simulate_session(P, cfg, struct('Ta', Ta, 'drive_s', 0, 'soc_plug', 0.20, 'dt', 1));
@@ -61,22 +61,26 @@ T = table(n_sl, n_ml, d_Tc, d_Ts, d_soc, d_I, d_u, n_sl*simp.dt/60, r.t_charge_m
 save_csv(T, sprintf('e09_simulink_validation_%dC', Ta));
 disp(T);
 
-fig = figure('Position', [60 60 1100 420]);
-tiledlayout(1, 2, 'TileSpacing', 'compact');
+fig = figure('Position', [60 60 1250 470]);
+tl = tiledlayout(1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+title(tl, sprintf('Model Simulink i skrypt MATLAB: sesja LIFE, otoczenie %d°C', Ta), ...
+    'FontWeight', 'bold', 'FontSize', 14);
+subtitle(tl, sprintf('największa różnica temperatury rdzenia: %.1e K', d_Tc), 'FontSize', 11);
 tt = (1:n_sl)'*simp.dt/60;
-nexttile;
-plot(tt, xs(:,1), 'Color', S.blue, 'LineWidth', 3); hold on
+nexttile; hold on
+plot(tt, xs(:,1), 'Color', S.blue, 'LineWidth', 4);
 plot(lg.t/60, lg.Tc, '--', 'Color', S.orange);
-plot(tt, xs(:,2), 'Color', S.green, 'LineWidth', 3); plot(lg.t/60, lg.Ts, '--', 'Color', S.red);
+plot(tt, xs(:,2), 'Color', S.green, 'LineWidth', 4);
+plot(lg.t/60, lg.Ts, '--', 'Color', S.red);
 xlabel('Czas [min]'); ylabel('Temperatura [°C]');
-legend('T_c Simulink', 'T_c MATLAB', 'T_s Simulink', 'T_s MATLAB', 'Location', 'southeast');
-title(sprintf('Simulink = MATLAB: maks. |\\Delta T_c| = %.1e K', d_Tc));
-nexttile;
-yyaxis left; plot(tt, Is, 'Color', S.blue, 'LineWidth', 3); hold on; plot(lg.t/60, lg.I, '--', 'Color', S.orange);
-ylabel('Prąd [A]');
-yyaxis right; plot(tt, us, 'Color', S.green, 'LineWidth', 2); ylabel('u');
-xlabel('Czas [min]'); legend('I Simulink', 'I MATLAB', 'u Simulink', 'Location', 'east');
-title('Prąd ładowania i sterowanie termiczne');
+legend('T_c, Simulink', 'T_c, MATLAB', 'T_s, Simulink', 'T_s, MATLAB', 'Location', 'southeast');
+title('Temperatura rdzenia i powierzchni');
+nexttile; hold on
+plot(tt, Is, 'Color', S.blue, 'LineWidth', 4);
+plot(lg.t/60, lg.I, '--', 'Color', S.orange);
+xlabel('Czas [min]'); ylabel('Prąd pakietu [A]'); ylim([0 320]);
+legend('Simulink', 'MATLAB', 'Location', 'southeast');
+title('Prąd ładowania');
 save_fig(fig, sprintf('e09_simulink_vs_matlab_%dC', Ta));
 end
 

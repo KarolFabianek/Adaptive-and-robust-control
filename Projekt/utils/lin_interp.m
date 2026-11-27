@@ -1,8 +1,8 @@
 function y = lin_interp(xt, yt, x)
-%LIN_INTERP  Szybka interpolacja liniowa z nasyceniem na krańcach tablicy.
-%   y = lin_interp(xt, yt, x) – xt rosnąca, x skalar.
-%   Zastępuje interp1 w pętlach symulacji (kilkakrotnie szybsza dla
-%   krótkich tablic) i jest zgodna z generacją kodu (MATLAB Function w Simulinku).
+%LIN_INTERP  Interpolacja liniowa z nasyceniem na krańcach tablicy.
+%   y = lin_interp(xt, yt, x), xt rosnąca, x skalar.
+%   Dla krótkich tablic działa kilka razy szybciej niż interp1 i nadaje się
+%   do generacji kodu w blokach MATLAB Function.
 n = numel(xt);
 if x <= xt(1)
     y = yt(1);

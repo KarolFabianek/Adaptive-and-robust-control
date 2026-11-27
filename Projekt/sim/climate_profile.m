@@ -1,14 +1,13 @@
 function C = climate_profile(name)
-%CLIMATE_PROFILE  Sinusoidalny model temperatury otoczenia (rok + doba).
+%CLIMATE_PROFILE  Sinusoidalny model temperatury otoczenia w roku i w dobie.
 %
-%   Ta(dzień, godzina) = T_mean - A_year cos(2 pi (d - 15)/365)
-%                               + A_day  cos(2 pi (h - 15)/24)
-%   Minimum roczne w połowie stycznia, maksimum dobowe o 15:00.
-%   Wartości są przybliżeniem średnich klimatycznych (nie dane pogodowe).
+%   Ta(d, h) = T_mean - A_year cos(2 pi (d - 15)/365) + A_day cos(2 pi (h - 15)/24)
+%   Minimum roczne przypada w połowie stycznia, maksimum dobowe o 15:00.
+%   Wartości przybliżają średnie klimatyczne, nie są danymi pogodowymi.
 %
-%   'opole'  – klimat umiarkowany chłodny (PL):  średnio  8.5°C, I ~ -2°C, VII ~ 19°C
-%   'madryt' – klimat ciepły (ES):                średnio 15.0°C, I ~  6°C, VII ~ 25°C
-%   'dubaj'  – klimat gorący (AE):                średnio 28.0°C, I ~ 19°C, VII ~ 36°C
+%   opole    klimat umiarkowany: średnio 8,5°C, styczeń -2°C, lipiec 19°C
+%   madryt   klimat ciepły:      średnio 15°C, styczeń 5,5°C, lipiec 24,5°C
+%   dubaj    klimat gorący:      średnio 28°C, styczeń 19,5°C, lipiec 36,5°C
 switch lower(name)
     case 'opole'
         C = struct('name', 'Opole', 'T_mean', 8.5, 'A_year', 10.5, 'A_day', 5);

@@ -1,23 +1,27 @@
 function [st, D, log] = simulate_day(P, Pc, cfg, st, C, doy, trip, dT_amb, want_log)
-%SIMULATE_DAY  Symulacja jednej doby użytkowania samochodu (00:00–24:00).
+%SIMULATE_DAY  Symulacja jednej doby użytkowania samochodu, od 00:00 do 24:00.
 %
 %   [st, D, log] = simulate_day(P, Pc, cfg, st, C, doy, trip, dT_amb, want_log)
-%     C    – klimat (climate_profile), doy – dzień roku
-%     trip – false: dzień roboczy (dojazdy 2 x 30 min, praca, dom)
-%            true : dzień w trasie: 150 km autostradą -> szybkie ładowanie DC
-%                   do 80% -> 150 km powrotu -> dom (ładowanie AC wg strategii)
+%     C      klimat (climate_profile)
+%     doy    dzień roku
+%     trip   false: dzień roboczy (dwa dojazdy po 30 min, praca, dom)
+%            true:  dzień w trasie: 150 km autostradą, szybkie ładowanie
+%                   do 80%, 150 km powrotu i wieczór w domu
 %
 %   Dzień roboczy:
-%     00:00–07:00 dom, z wtyczką   | 07:00–07:30 jazda | 07:30–17:00 praca, bez wtyczki
-%     17:00–17:30 jazda           | 17:30–24:00 dom, z wtyczką
-%   Ładowanie AC:
-%     strategie STD – od razu po podłączeniu do cfg.soc_ac,
-%     strategie LIFE – „just in time”: start tak, by skończyć o 06:45
-%     (bateria nie czeka godzinami na wysokim SOC).
+%     00:00 do 07:00   dom, auto podłączone do ładowarki
+%     07:00 do 07:30   jazda
+%     07:30 do 17:00   praca, auto bez ładowarki
+%     17:00 do 17:30   jazda
+%     17:30 do 24:00   dom, auto podłączone do ładowarki
+%   Ładowanie AC: strategie STD ładują od razu po podłączeniu do cfg.soc_ac.
+%   Strategie LIFE zaczynają tak, aby skończyć o 06:45, więc bateria nie stoi
+%   godzinami przy wysokim SOC.
 %
-%   D – podsumowanie doby: S (stres starzenia), E_TM_kWh, E_ch_kWh,
-%       Tc_mean, Tc_max (także na postoju w słońcu), Tc_max_active (w jeździe
-%       i podczas ładowania – to nadzoruje BTMS), soc_mean, t_dc_min.
+%   D zawiera podsumowanie doby: stres starzenia S, energię układu
+%   termicznego, energię ładowania, średnią i maksymalną temperaturę rdzenia
+%   (Tc_max także na postoju w słońcu, Tc_max_active tylko w jeździe i przy
+%   ładowaniu), średni SOC i czas szybkiego ładowania.
 
 if nargin < 8, dT_amb = 0; end
 if nargin < 9, want_log = false; end
@@ -39,7 +43,7 @@ if ~trip
     end
 else
     run_segment(0, 7*H, 3, 0, 'home');
-    % trasa: ten sam dystans dla każdej strategii (uczciwe porównanie)
+    % Trasa: każda strategia przejeżdża ten sam dystans
     t_leg = P.trip_km*P.kWh_per_100km_hwy/100*1000*H/P.P_highway;   % [s]
     t = 7*H;
     t = run_until(t, 1, P.P_highway, @(x) x(3) <= 0.03, t_leg, true);
@@ -64,13 +68,12 @@ D.Tc_max_active = Tmax_act;
 D.t_dc_min = t_dc;
 log = Lg;
 
-    % ---------------------------------------------------------------
     function run_segment(t0, t1, mode, Pd, tag)
         dt = seg_dt(mode);
         seg = struct('mode', mode, 'P_drive', Pd, 'soc_target', cfg.soc_ac, ...
                      'charge_en', 0, 'precond', 0);
         st.z = 0;
-        % plan ładowania AC
+        % Plan ładowania AC
         t_start_ac = t0;
         if mode == 3 && cfg.jit
             if strcmp(tag, 'home')

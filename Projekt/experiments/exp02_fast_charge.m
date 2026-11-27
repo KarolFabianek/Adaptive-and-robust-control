@@ -1,10 +1,11 @@
 function R = exp02_fast_charge()
-%EXP02_FAST_CHARGE  E02 – szybkie ładowanie DC: 6 strategii x 6 temperatur.
+%EXP02_FAST_CHARGE  E02. Szybkie ładowanie DC: 6 strategii w 6 temperaturach.
 %
-%   Każda sesja: 15 min jazdy autostradą do ładowarki (w strategii LIFE
-%   z podgrzewaniem / chłodzeniem wstępnym), potem ładowanie 20% -> 80% SOC.
-%   Wskaźniki: czas ładowania, Tc_max, energia układu termicznego,
-%   minimalny potencjał anody, litowanie i utrata pojemności na sesję.
+%   Każda sesja zaczyna się od 15 minut jazdy autostradą do ładowarki.
+%   Strategia LIFE podgrzewa albo chłodzi wtedy pakiet. Potem następuje
+%   ładowanie od 20% do 80% SOC. Wskaźniki: czas ładowania, maksymalna
+%   temperatura rdzenia, energia układu termicznego, minimalny potencjał
+%   anody, litowanie i utrata pojemności na sesję.
 P = bms_params();
 S = plot_style();
 fprintf('\n=== E02: szybkie ładowanie DC ===\n');
@@ -27,47 +28,65 @@ R = cell2table(rows, 'VariableNames', {'strategy','Ta_C','soc_plug_pct','Tc_plug
 save_csv(R, 'e02_fast_charge');
 disp(R(ismember(R.Ta_C, [0 25 35]), :));
 
-%% Przebiegi: STD_90 vs LIFE przy 0°C i 35°C
+%% Przebiegi sesji: typowy BMS (STD-90) i strategia LIFE przy 0°C i 35°C
 for Ta = [0 35]
     tag = strrep(sprintf('%d', Ta), '-', 'm');
     a = logs.(['STD_90_' tag]); b = logs.(['LIFE_' tag]);
-    fig = figure('Position', [80 80 1100 650]);
-    tl = tiledlayout(2, 2, 'TileSpacing', 'compact');
-    title(tl, sprintf('Szybkie ładowanie przy %d°C: typowy BMS (STD\\_90) vs proponowana strategia LIFE', Ta), 'FontWeight', 'bold');
-    nexttile; plot(a.t/60, a.I, 'Color', S.orange); hold on; plot(b.t/60, b.I, 'Color', S.blue);
-    xline(0, ':'); ylabel('Prąd pakietu [A]'); xlabel('Czas od podłączenia [min]');
-    legend('STD\_90', 'LIFE', 'Location', 'best'); title('Prąd (t < 0: jazda do ładowarki)');
-    nexttile; plot(a.t/60, a.Tc, 'Color', S.orange); hold on; plot(b.t/60, b.Tc, 'Color', S.blue);
-    plot(b.t/60, b.Tc_hat, ':', 'Color', S.navy);
-    yline(P.T_lim, '--r', '40°C'); xline(0, ':');
-    ylabel('T_c [°C]'); xlabel('Czas od podłączenia [min]');
-    legend('STD\_90', 'LIFE', 'LIFE – obserwator', 'Location', 'best'); title('Temperatura rdzenia');
-    nexttile; plot(a.t/60, 1000*a.phi, 'Color', S.orange); hold on; plot(b.t/60, 1000*b.phi, 'Color', S.blue);
-    yline(0, '--r', 'litowanie'); yline(1000*P.phi_margin, ':', 'zapas 15 mV'); xline(0, ':');
-    ylabel('\phi_{an} [mV]'); xlabel('Czas od podłączenia [min]'); title('Potencjał anody');
-    nexttile; plot(a.t/60, 100*a.soc, 'Color', S.orange); hold on; plot(b.t/60, 100*b.soc, 'Color', S.blue);
-    yyaxis right; plot(a.t/60, a.u, '--', 'Color', S.orange); plot(b.t/60, b.u, '--', 'Color', S.blue);
-    ylabel('sterowanie u (−grzanie / +chłodzenie)'); ylim([-1.1 1.1]);
-    yyaxis left; ylabel('SOC [%]'); xlabel('Czas od podłączenia [min]'); xline(0, ':');
-    title('SOC (linie ciągłe) i sterowanie termiczne (przerywane)');
+    tmin = min(a.t(1), b.t(1))/60; tmax = max(a.t(end), b.t(end))/60;
+    fig = figure('Position', [80 80 1200 680]);
+    tl = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+    title(tl, sprintf('Szybkie ładowanie od 20 do 80%% SOC, temperatura otoczenia %d°C', Ta), ...
+        'FontWeight', 'bold', 'FontSize', 14);
+    panels = {'I', 'Tc', 'phi', 'u'};
+    for k = 1:4
+        nexttile; hold on
+        xregion(tmin, 0, 'FaceColor', [0.85 0.85 0.85], 'FaceAlpha', 0.35, 'HandleVisibility', 'off');
+        switch panels{k}
+            case 'I'
+                plot(a.t/60, a.I, 'Color', S.orange); plot(b.t/60, b.I, 'Color', S.blue);
+                ylabel('Prąd pakietu [A]'); title('Prąd ładowania (ujemny: jazda)');
+                legend(S.label('STD_90'), S.label('LIFE'), 'Location', 'southeast');
+                text(tmin + 0.5, 270, 'dojazd do ładowarki', 'Color', [0.35 0.35 0.35], 'FontSize', 10);
+            case 'Tc'
+                plot(a.t/60, a.Tc, 'Color', S.orange); plot(b.t/60, b.Tc, 'Color', S.blue);
+                plot(b.t/60, b.Tc_hat, ':', 'Color', S.navy, 'LineWidth', 2.5);
+                yline(P.T_lim, '--', 'limit 40°C', 'Color', S.red, 'HandleVisibility', 'off');
+                ylabel('T_c [°C]'); title('Temperatura rdzenia');
+                legend('STD-90', 'LIFE', 'LIFE, estymata obserwatora', 'Location', 'best');
+            case 'phi'
+                plot(a.t/60, 1000*a.phi, 'Color', S.orange); plot(b.t/60, 1000*b.phi, 'Color', S.blue);
+                yline(0, '--', 'próg litowania', 'Color', S.red, 'LabelVerticalAlignment', 'bottom');
+                ylabel('\phi_{an} [mV]'); title('Potencjał anody względem Li/Li^+');
+            case 'u'
+                plot(a.t/60, a.u, 'Color', S.orange); plot(b.t/60, b.u, 'Color', S.blue);
+                yline(0, ':', 'HandleVisibility', 'off'); ylim([-1.1 1.1]);
+                ylabel('u [-]'); title('Sterowanie termiczne (u < 0 grzanie, u > 0 chłodzenie)');
+        end
+        xlim([tmin tmax]); xlabel('Czas od podłączenia do ładowarki [min]');
+    end
     save_fig(fig, sprintf('e02_session_%sC', tag));
 end
 
-%% Zestawienie: czas ładowania i utrata pojemności vs temperatura
-fig = figure('Position', [80 80 1100 420]);
-tiledlayout(1, 2, 'TileSpacing', 'compact');
+%% Zestawienie: czas ładowania i utrata pojemności w funkcji temperatury
+fig = figure('Position', [80 80 1200 470]);
+tiledlayout(1, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
 nexttile; hold on
 for i = 1:numel(strategies)
     k = strcmp(R.strategy, strategies{i});
-    plot(R.Ta_C(k), R.t_charge_min(k), '-o', 'Color', S.col(strategies{i}), 'MarkerFaceColor', S.col(strategies{i}));
+    plot(R.Ta_C(k), R.t_charge_min(k), '-o', 'Color', S.col(strategies{i}), ...
+        'MarkerFaceColor', S.col(strategies{i}), 'DisplayName', S.short(strategies{i}));
 end
-xlabel('Temperatura otoczenia [°C]'); ylabel('Czas ładowania 20 \rightarrow 80% [min]');
-legend(cellfun(@(s) S.label(s), strategies, 'UniformOutput', false), 'Location', 'northeast');
-title('Czas ładowania');
+k = strcmp(R.strategy, 'STD_90') & ~R.done;
+if any(k)
+    text(R.Ta_C(k) + 1, R.t_charge_min(k) - 3, 'przerwano po 120 min', 'FontSize', 10, 'Color', S.orange);
+end
+xlabel('Temperatura otoczenia [°C]'); ylabel('Czas ładowania [min]');
+legend('Location', 'northeast'); title('Czas ładowania od 20 do 80% SOC');
 nexttile; hold on
 for i = 1:numel(strategies)
     k = strcmp(R.strategy, strategies{i});
-    semilogy(R.Ta_C(k), R.dQ_session_ppm(k), '-o', 'Color', S.col(strategies{i}), 'MarkerFaceColor', S.col(strategies{i}));
+    plot(R.Ta_C(k), R.dQ_session_ppm(k), '-o', 'Color', S.col(strategies{i}), ...
+        'MarkerFaceColor', S.col(strategies{i}));
 end
 set(gca, 'YScale', 'log');
 xlabel('Temperatura otoczenia [°C]'); ylabel('Utrata pojemności na sesję [ppm]');

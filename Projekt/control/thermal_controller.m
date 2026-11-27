@@ -1,19 +1,18 @@
 function [u, z_next] = thermal_controller(P, cfg, z, Tc_hat, Ts, Qgen_hat, Tref, T_heat, dt)
-%THERMAL_CONTROLLER  Regulator temperatury pakietu: PI / GS-PI + FF + grzanie.
+%THERMAL_CONTROLLER  Regulator temperatury pakietu: PI lub GS z kompensacją i grzaniem.
 %
 %   [u, z_next] = thermal_controller(P, cfg, z, Tc_hat, Ts, Qgen_hat, Tref, T_heat, dt)
-%     z        – stan integratora PI
-%     Tc_hat   – estymata temperatury rdzenia z obserwatora [°C]
-%     Ts       – zmierzona temperatura powierzchni [°C]
-%     Qgen_hat – estymowana moc strat I^2 R [W] (dla feedforwardu)
-%     Tref     – temperatura zadana chłodzenia [°C]
-%     T_heat   – próg grzania [°C] (-Inf = grzanie wyłączone)
-%   u w zakresie -1..1 (u < 0 grzanie, u > 0 chłodzenie).
-%
-%   Działanie odwrotne: e = Tc - Tref > 0 -> więcej chłodzenia.
-%   Anti-windup: całkowanie warunkowe (zatrzymane, gdy pogłębia nasycenie).
+%     z         stan integratora
+%     Tc_hat    estymata temperatury rdzenia [°C]
+%     Ts        zmierzona temperatura powierzchni [°C]
+%     Qgen_hat  estymowane straty cieplne I^2 R [W], wejście kompensacji
+%     Tref      temperatura zadana chłodzenia [°C]
+%     T_heat    próg grzania [°C], -Inf wyłącza grzanie
+%   Sterowanie u leży w przedziale od -1 do 1 (u < 0 grzanie, u > 0 chłodzenie).
+%   Działanie odwrotne: dodatni uchyb e = Tc - Tref zwiększa chłodzenie.
+%   Anti-windup: całkowanie jest wstrzymane, gdy pogłębiałoby nasycenie.
 
-% --- grzanie (podgrzewanie przed szybkim ładowaniem / w trakcie) ---
+% Grzanie przed szybkim ładowaniem i w jego trakcie
 if Tc_hat < T_heat
     u = -min(1, P.Kh*(T_heat - Tc_hat));
     z_next = 0;
