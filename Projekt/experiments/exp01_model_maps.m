@@ -42,7 +42,7 @@ semilogy(T, 1000*R_lin, '--', 'Color', S.grey);
 xlabel('Temperatura rdzenia [°C]'); ylabel('Rezystancja ogniwa [m\Omega]');
 legend('R_0 + R_1, model Arrheniusa (E_a = 22 kJ/mol)', ...
        'R_{an}, rezystancja anody (E_a = 50 kJ/mol)', ...
-       'model liniowy z wykładu', 'Location', 'northeast');
+       'uproszczony model liniowy', 'Location', 'northeast');
 title('Rezystancja ogniwa w funkcji temperatury (SOC 50%)');
 save_fig(fig, 'e01_resistance');
 

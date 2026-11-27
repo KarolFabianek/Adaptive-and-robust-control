@@ -16,11 +16,11 @@ Plik `Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 27 slajdów. Tekst każdeg
 
 ### Slajd 1. Zarządzanie termiczne baterią pojazdu elektrycznego z zastosowaniem Gain Scheduling
 
-**Karol Fabianek:** Dzień dobry. Nazywam się Karol Fabianek, a to Paweł Fortuna. Tematem wykładu jest zarządzanie termiczne baterią pojazdu elektrycznego z zastosowaniem gain schedulingu, czyli harmonogramowania nastaw regulatora. Pokażemy, dlaczego bateria potrzebuje aktywnego układu termicznego, jak wygląda jej model i jak zbudować regulator, którego nastawy zmieniają się wraz z punktem pracy. Na końcu zapowiemy część projektową, w której sprawdzamy to wszystko na dziesięciu latach eksploatacji.
+**Karol Fabianek:** Dzień dobry. Nazywam się Karol Fabianek, a to Paweł Fortuna. Tematem wykładu jest zarządzanie termiczne baterią pojazdu elektrycznego z zastosowaniem gain schedulingu, czyli harmonogramowania nastaw regulatora. Pokażemy, dlaczego bateria potrzebuje aktywnego układu termicznego, jak wygląda jej model i jak zbudować regulator, którego nastawy zmieniają się wraz z punktem pracy. Na końcu pokażemy, jak te mechanizmy wpływają na trwałość baterii w horyzoncie dziesięciu lat.
 
 ### Slajd 2. Gain Scheduling w zarządzaniu temperaturą baterii EV
 
-**Karol Fabianek:** Plan ma pięć części. Najpierw problem: po co sterować temperaturą baterii. Potem obiekt: pakiet i jego model elektryczny, cieplny oraz model anody. W trzeciej części Paweł omówi regulator z harmonogramem nastaw, anti-windup i nadzór prądu. Następnie pokażę przykłady symulacyjne przy 25 i 35 stopniach. Na końcu Paweł przedstawi ograniczenia modelu i zapowie projekt.
+**Karol Fabianek:** Plan ma pięć części. Najpierw problem: po co sterować temperaturą baterii. Potem obiekt: pakiet i jego model elektryczny, cieplny oraz model anody. W trzeciej części Paweł omówi regulator z harmonogramem nastaw, anti-windup i nadzór prądu. Następnie pokażę przykłady symulacyjne przy 25 i 35 stopniach. Na końcu Paweł przedstawi ograniczenia modelu i wyniki długoterminowe.
 
 ### Slajd 3. Dlaczego bateria EV potrzebuje BTMS?
 
@@ -60,7 +60,7 @@ Plik `Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 27 slajdów. Tekst każdeg
 
 ### Slajd 12. Dobór nastaw i weryfikacja harmonogramu
 
-**Paweł Fortuna:** Jak dobraliśmy nastawy? Regulator PI dostroiliśmy w punkcie projektowym: rho równe 17 kelwinów, czyli 35 stopni powierzchni przy 18 stopniach cieczy. Harmonogram utrzymuje stały iloczyn Kp razy Gcool razy rho, czyli stałe wzmocnienie pętli otwartej. Trzy karty pokazują nastawy w trzech punktach pracy. Co potwierdziła analiza z projektu? Pulsacja odcięcia GS pozostaje stała, 2,61 miliradiana na sekundę, a PI przy 6 kelwinach spada do 0,88. We wszystkich 33 punktach pracy bieguny są stabilne. Uczciwie zaznaczamy, czego nie mamy: formalnego dowodu stabilności LPV. Analiza jest lokalna, co jest uzasadnione, bo rho zmienia się wolno w porównaniu z dynamiką pętli.
+**Paweł Fortuna:** Jak dobraliśmy nastawy? Regulator PI dostroiliśmy w punkcie projektowym: rho równe 17 kelwinów, czyli 35 stopni powierzchni przy 18 stopniach cieczy. Harmonogram utrzymuje stały iloczyn Kp razy Gcool razy rho, czyli stałe wzmocnienie pętli otwartej. Trzy karty pokazują nastawy w trzech punktach pracy. Co potwierdziła analiza? Pulsacja odcięcia GS pozostaje stała, 2,61 miliradiana na sekundę, a PI przy 6 kelwinach spada do 0,88. We wszystkich 33 punktach pracy bieguny są stabilne. Uczciwie zaznaczamy, czego nie mamy: formalnego dowodu stabilności LPV. Analiza jest lokalna, co jest uzasadnione, bo rho zmienia się wolno w porównaniu z dynamiką pętli.
 
 ### Slajd 13. Regulator PI z anti-windupem i sprzężeniem w przód
 
@@ -72,7 +72,7 @@ Plik `Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 27 slajdów. Tekst każdeg
 
 ### Slajd 15. Sześć warstw ograniczenia prądu ładowania
 
-**Paweł Fortuna:** Wszystkie te ograniczenia łączymy w jeden wzór: zadany prąd to minimum sześciu limitów. Pierwszy to profil SOC z redukcją po 70 procentach. Drugi to nadzór termiczny. Trzeci to tablica typowego BMS. Czwarty to limit anody wyliczany z modelu, a nie z tablicy. Piąty to faza CV. Szósty to poziom ochrony z nadrzędnej pętli zdrowia baterii, który poznamy w projekcie. Ograniczenie prądu jest niezależne od gain schedulingu, a każda warstwa chroni przed innym mechanizmem.
+**Paweł Fortuna:** Wszystkie te ograniczenia łączymy w jeden wzór: zadany prąd to minimum sześciu limitów. Pierwszy to profil SOC z redukcją po 70 procentach. Drugi to nadzór termiczny. Trzeci to tablica typowego BMS. Czwarty to limit anody wyliczany z modelu, a nie z tablicy. Piąty to faza CV. Szósty to poziom ochrony z nadrzędnej pętli zdrowia baterii, który działa w skali miesięcy. Ograniczenie prądu jest niezależne od gain schedulingu, a każda warstwa chroni przed innym mechanizmem.
 
 ### Slajd 16. Zużycie baterii ma minimum w funkcji temperatury ładowania
 
@@ -80,7 +80,7 @@ Plik `Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 27 slajdów. Tekst każdeg
 
 ### Slajd 17. Każda strategia dodaje jeden mechanizm
 
-**Paweł Fortuna:** Porównujemy warianty, z których każdy dodaje jeden mechanizm. Punktem odniesienia jest CC, czyli stałe chłodzenie bez regulatora. Następnie regulator PI o stałych nastawach i GS z harmonogramem. GS-SAFE dodaje feedforward i nadzór prądu. STD to typowy BMS z tablicą prądów, który w domu ładuje od razu do 90 lub 100 procent. LIFE i LIFE-ADAPT to nasze strategie z projektu. Pierwsze cztery warianty porównują regulatory chłodzenia, a dwa ostatnie politykę ładowania.
+**Paweł Fortuna:** Porównujemy warianty, z których każdy dodaje jeden mechanizm. Punktem odniesienia jest CC, czyli stałe chłodzenie bez regulatora. Następnie regulator PI o stałych nastawach i GS z harmonogramem. GS-SAFE dodaje feedforward i nadzór prądu. STD to typowy BMS z tablicą prądów, który w domu ładuje od razu do 90 lub 100 procent. LIFE i LIFE-ADAPT to proponowane strategie ochrony baterii. Pierwsze cztery warianty porównują regulatory chłodzenia, a dwa ostatnie politykę ładowania.
 
 ### Slajd 18. Dwie skale badań: sesja ładowania i 10 lat
 
@@ -100,15 +100,15 @@ Plik `Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 27 slajdów. Tekst każdeg
 
 ### Slajd 22. Bateria starzeje się także na postoju
 
-**Karol Fabianek:** Ostatnia ciekawostka: bateria starzeje się także wtedy, gdy auto stoi. Mapa pokazuje utratę pojemności po dziesięciu latach samego postoju w stałych warunkach. Postój przy stu procentach SOC przyspiesza starzenie około 2,2 raza w porównaniu z pięćdziesięcioma procentami. Każde dziesięć stopni przyspiesza je mniej więcej dwukrotnie. W Dubaju przy codziennym ładowaniu do stu procent sam postój zabiera 19,8 procent pojemności w dziesięć lat. O trwałości decyduje więc także sposób postoju baterii. Teraz Paweł przedstawi ograniczenia i projekt.
+**Karol Fabianek:** Ostatnia ciekawostka: bateria starzeje się także wtedy, gdy auto stoi. Mapa pokazuje utratę pojemności po dziesięciu latach samego postoju w stałych warunkach. Postój przy stu procentach SOC przyspiesza starzenie około 2,2 raza w porównaniu z pięćdziesięcioma procentami. Każde dziesięć stopni przyspiesza je mniej więcej dwukrotnie. W Dubaju przy codziennym ładowaniu do stu procent sam postój zabiera 19,8 procent pojemności w dziesięć lat. O trwałości decyduje więc także sposób postoju baterii. Teraz Paweł przedstawi ograniczenia modelu i wyniki długoterminowe.
 
 ### Slajd 23. Ograniczenia modelu
 
-**Paweł Fortuna:** Krytyczna ocena modelu. W części elektryczno-cieplnej pakiet to jedno uśrednione ogniwo, bez rozrzutu parametrów. Zamiast modelu elektrochemicznego używamy obwodu zastępczego, a litowanie opisujemy modelem progowym. Przewodności cieplne pochodzą z literatury, a klimat to sinusoida bez nasłonecznienia. W modelu starzenia współczynniki są literaturowe, a składowe sumujemy, co też jest założeniem. Kształt degradacji jest niepewny, bo dane NASA wskazują raczej na przebieg liniowy. Dlatego w projekcie stosujemy analizę Monte Carlo i pętlę sprzężenia od zmierzonego SOH. Model nadaje się do porównywania strategii, ale nie do prognozy dla konkretnego pakietu.
+**Paweł Fortuna:** Krytyczna ocena modelu. W części elektryczno-cieplnej pakiet to jedno uśrednione ogniwo, bez rozrzutu parametrów. Zamiast modelu elektrochemicznego używamy obwodu zastępczego, a litowanie opisujemy modelem progowym. Przewodności cieplne pochodzą z literatury, a klimat to sinusoida bez nasłonecznienia. W modelu starzenia współczynniki są literaturowe, a składowe sumujemy, co też jest założeniem. Kształt degradacji jest niepewny, bo dane NASA wskazują raczej na przebieg liniowy. Dlatego stosujemy analizę Monte Carlo i pętlę sprzężenia od zmierzonego SOH. Model nadaje się do porównywania strategii, ale nie do prognozy dla konkretnego pakietu.
 
-### Slajd 24. Zakres części projektowej
+### Slajd 24. Trwałość baterii w horyzoncie 10 lat
 
-**Paweł Fortuna:** W części projektowej zbudowaliśmy kompletny model w MATLAB-ie, bez dodatkowych toolboxów, oraz model blokowy w Simulinku. Przeprowadziliśmy 36 sesji ładowania, symulacje dziesięcioletnie w trzech klimatach, analizę Monte Carlo i identyfikację online. Zapowiedź wyników: w Dubaju pętla adaptacyjna podnosi SOH po dziesięciu latach z 69,2 do 80,8 procent. W analizie Monte Carlo odsetek pakietów spełniających cel rośnie z 72 do 96 procent. Wszystkie wyniki odtwarza jedno polecenie run_all.
+**Paweł Fortuna:** Wyniki w horyzoncie dziesięciu lat. W Dubaju typowy BMS kończy z 69,2 procent SOH, a strategia z pętlą adaptacyjną z 80,8 procent. W analizie odporności losujemy pięćdziesiąt pakietów o różnych parametrach starzenia, rezystancji i klimatu. Wymaganie spełnia 72 procent pakietów z typowym BMS i 96 procent z pętlą adaptacyjną, a rozrzut SOH maleje. Dane NASA wskazują, że rzeczywista degradacja jest bliższa liniowej, a niezależny model blokowy potwierdza wyniki. Sprzężenie od zmierzonego SOH kompensuje więc błędy modelu, co jest istotą sterowania odpornego.
 
 ### Slajd 25. Wnioski
 
@@ -124,36 +124,36 @@ Plik `Prezentacja/BTMS_WYKLAD_FABIANEK_FORTUNA.pptx`, 27 slajdów. Tekst każdeg
 
 ## Część 2. Projekt: sterowanie ładowaniem i temperaturą baterii z ograniczeniem starzenia
 
-Plik `Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx`, 33 slajdów. Tekst każdego slajdu jest też w notatkach prelegenta w pliku .pptx.
+Plik `Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx`, 29 slajdów. Tekst każdego slajdu jest też w notatkach prelegenta w pliku .pptx.
 
 | Osoba | Slajdy | Liczba slajdów | Czas mówienia |
 |---|---|---:|---:|
-| Karol Fabianek | 1-14, 30-33 | 18 | około 10 min |
-| Paweł Fortuna | 15-29 | 15 | około 9 min |
+| Karol Fabianek | 1-14, 27-29 | 17 | około 10 min |
+| Paweł Fortuna | 15-26 | 12 | około 7 min |
 
 ### Slajd 1. Sterowanie ładowaniem i temperaturą baterii pojazdu elektrycznego z ograniczeniem starzenia
 
-**Karol Fabianek:** Dzień dobry. Nazywam się Karol Fabianek, a to Paweł Fortuna. Na wykładzie pokazaliśmy gain scheduling w układzie chłodzenia baterii samochodu elektrycznego. Dziś przedstawiamy część projektową. Postawiliśmy pytanie praktyczne: jak sterować ładowaniem i temperaturą pakietu, aby po dziesięciu latach eksploatacji bateria zachowała co najmniej osiemdziesiąt procent pojemności? Całość zbudowaliśmy w MATLAB-ie i Simulinku. Projekt jest też przygotowany do zajęć laboratoryjnych. Ja omówię cel, model i szybkie ładowanie, a Paweł, regulator, wyniki dziesięcioletnie, odporność i laboratorium.
+**Karol Fabianek:** Dzień dobry. Nazywam się Karol Fabianek, a to Paweł Fortuna. Przedstawiamy sterowanie ładowaniem i temperaturą baterii pojazdu elektrycznego z ograniczeniem starzenia. Postawiliśmy pytanie: jak sterować prądem, napięciem, stanem naładowania i temperaturą pakietu, aby po dziesięciu latach eksploatacji bateria zachowała co najmniej osiemdziesiąt procent pojemności? Odpowiedź opiera się na modelu elektryczno-cieplnym pakietu, modelu starzenia i trzech pętlach sterowania. Ja omówię cel, model i szybkie ładowanie, a Paweł regulator, wyniki dziesięcioletnie i odporność.
 
 ### Slajd 2. Wymagania projektowe
 
-**Karol Fabianek:** Założenia są cztery. Pierwsze: SOH, czyli pojemność względna, ma po dziesięciu latach wynosić co najmniej osiemdziesiąt procent. To ostrzejsze niż typowa gwarancja producentów, która mówi o siedemdziesięciu procentach po ośmiu latach. Drugie: walczymy o pojemność, więc rozbijamy jej utratę na trzy mechanizmy. Trzecie: sterujemy parametrami ładowania, prądem, napięciem fazy CV, oknem SOC, momentem ładowania i temperaturą przy ładowaniu. Czwarte: pilnujemy nominalnej temperatury, czyli rdzeń poniżej czterdziestu stopni. Obiekt jest ten sam co na wykładzie: pakiet 96s50p, 345,6 V, 175 Ah, około 60 kWh.
+**Karol Fabianek:** Założenia są cztery. Pierwsze: SOH, czyli pojemność względna, ma po dziesięciu latach wynosić co najmniej osiemdziesiąt procent. To ostrzejsze niż typowa gwarancja producentów, która mówi o siedemdziesięciu procentach po ośmiu latach. Drugie: walczymy o pojemność, więc rozbijamy jej utratę na trzy mechanizmy. Trzecie: sterujemy parametrami ładowania, prądem, napięciem fazy CV, oknem SOC, momentem ładowania i temperaturą przy ładowaniu. Czwarte: pilnujemy nominalnej temperatury, czyli rdzeń poniżej czterdziestu stopni. Obiektem jest pakiet 96s50p, 345,6 V, 175 Ah, około 60 kWh.
 
 ### Slajd 3. Najważniejsze wyniki
 
 **Karol Fabianek:** Zacznę od wyników. W gorącym klimacie, czyli w Dubaju, typowy BMS ładujący do stu procent kończy dziesięć lat z 69,2 procent SOH. Nasza strategia z pętlą adaptacyjną osiąga 80,8 procent. W Madrycie sama zmiana sposobu ładowania podnosi wynik z 79,1 do 85,2 procent. Przy zerze stopni szybkie ładowanie skraca się z 47 do 21 minut i jest bezpieczne dla anody. W analizie odporności cel spełnia 72 procent losowych pakietów z typowym BMS i 96 procent z naszą pętlą. Najważniejszy wniosek: o trwałości bardziej niż prąd szybkiego ładowania decyduje to, jak długo i w jakiej temperaturze bateria stoi naładowana.
 
-### Slajd 4. Rozwinięcie modelu z wykładu
+### Slajd 4. Zjawiska uwzględnione w modelu
 
-**Karol Fabianek:** Na wykładzie uczciwie wymieniliśmy ograniczenia modelu. W projekcie każde z nich usunęliśmy. Model elektryczny ma krzywą napięcia obwodu otwartego i obwód RC, więc działa prawdziwe ładowanie CC-CV z limitem 4,2 V na ogniwo. Rezystancja zależy od temperatury według prawa Arrheniusa, a w ćwiczeniu pokazujemy jej identyfikację online. Temperatury rdzenia nie da się zmierzyć, więc estymuje ją obserwator. Stan zdrowia co miesiąc zmienia pojemność i rezystancję. Niepewność modelu starzenia badamy metodą Monte Carlo i porównujemy z danymi NASA.
+**Karol Fabianek:** Ten slajd zestawia zjawiska, które uwzględnia model. Dynamikę elektryczną opisuje krzywa napięcia obwodu otwartego i obwód RC, dzięki czemu można modelować pełne ładowanie CC-CV z ograniczeniem 4,2 V na ogniwo. Rezystancja zależy od temperatury według prawa Arrheniusa, a jej parametry można identyfikować na bieżąco metodą RLS. Temperatury rdzenia nie da się zmierzyć, więc estymuje ją obserwator. Stan zdrowia zmienia pojemność i rezystancję, a samo starzenie opisuje model półempiryczny z trzema składowymi.
 
 ### Slajd 5. Trzy pętle sterowania w trzech skalach czasu
 
-**Karol Fabianek:** Sterowanie ma trzy warstwy o różnych skalach czasu. Pętla szybka działa co sekundę: regulator PI chłodzenia z harmonogramem nastaw, feedforward od strat cieplnych, anti-windup, warstwowy limit prądu i obserwator. Pętla średnia działa na poziomie sesji i doby: ustala okno SOC, moment ładowania w domu i podgrzewanie przed szybkim ładowaniem. Pętla wolna działa raz w miesiącu: estymator RLS ocenia stan zdrowia, a regulator PI porównuje go z planem i ustawia jeden parametr, poziom ochrony lambda. Rozdzielenie skal czasu upraszcza projekt, bo każda pętla widzi szybsze jako już ustalone.
+**Karol Fabianek:** Sterowanie ma trzy warstwy o różnych skalach czasu. Pętla szybka działa co sekundę: regulator PI chłodzenia z harmonogramem nastaw, feedforward od strat cieplnych, anti-windup, warstwowy limit prądu i obserwator. Pętla średnia działa na poziomie sesji i doby: ustala okno SOC, moment ładowania w domu i podgrzewanie przed szybkim ładowaniem. Pętla wolna działa raz w miesiącu: estymator RLS ocenia stan zdrowia, a regulator PI porównuje go z planem i ustawia jeden parametr, poziom ochrony lambda. Rozdzielenie skal czasu upraszcza syntezę, bo każda pętla widzi szybsze jako już ustalone.
 
 ### Slajd 6. Model elektryczny 1RC i dwuwęzłowy model cieplny
 
-**Karol Fabianek:** Model pakietu to obwód zastępczy z jedną gałęzią RC i dwuwęzłowy model cieplny z wykładu: rdzeń i powierzchnia. Gałąź RC dyskretyzujemy dokładnie, a równania cieplne całkujemy niejawną metodą Eulera. To ważny szczegół numeryczny: metoda niejawna jest stabilna przy każdym kroku, więc postój liczymy z krokiem sześćdziesięciu sekund, a dziesięć lat eksploatacji w kilka sekund. Wykres pokazuje rezystancję w funkcji temperatury. W zerze stopni rezystancja ogniwa rośnie ponad dwukrotnie, a rezystancja anody, która decyduje o litowaniu, około pięciokrotnie. Linia przerywana to stary, liniowy model z wykładu, w zimnie mocno zaniżał rezystancję.
+**Karol Fabianek:** Model pakietu to obwód zastępczy z jedną gałęzią RC i dwuwęzłowy model cieplny: rdzeń i powierzchnia. Gałąź RC dyskretyzujemy dokładnie, a równania cieplne całkujemy niejawną metodą Eulera. To ważny szczegół numeryczny: metoda niejawna jest stabilna przy każdym kroku, więc postój liczymy z krokiem sześćdziesięciu sekund, a dziesięć lat eksploatacji w kilka sekund. Wykres pokazuje rezystancję w funkcji temperatury. W zerze stopni rezystancja ogniwa rośnie ponad dwukrotnie, a rezystancja anody, która decyduje o litowaniu, około pięciokrotnie. Linia przerywana to uproszczony model liniowy, który w zimnie mocno zaniżał rezystancję.
 
 ### Slajd 7. Anoda pracuje tylko około 100 mV nad potencjałem litu
 
@@ -169,7 +169,7 @@ Plik `Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx`, 33 slajdów. Tekst każde
 
 ### Slajd 10. Warstwowe ograniczenie prądu ładowania
 
-**Karol Fabianek:** Prąd ładowania wybieramy jako minimum sześciu limitów. Limit bazowy to możliwości stacji lub wallboxa. Profil SOC pochodzi z wykładu. Nadzór termiczny redukuje prąd między 36,5 a 39,5 stopnia. Tablica typowego BMS ogranicza prąd na zimno. Faza CV pilnuje napięcia 4,2 V. Nowością jest limit anody: największy prąd, przy którym potencjał anody zostaje co najmniej piętnaście miliwoltów nad zerem. Nie pochodzi on z tablicy, tylko z modelu, więc sam maleje w zimnie, przy wysokim SOC i gdy bateria się starzeje.
+**Karol Fabianek:** Prąd ładowania wybieramy jako minimum sześciu limitów. Limit bazowy to możliwości stacji lub wallboxa. Profil SOC redukuje prąd powyżej 70 procent. Nadzór termiczny redukuje prąd między 36,5 a 39,5 stopnia. Tablica typowego BMS ogranicza prąd na zimno. Faza CV pilnuje napięcia 4,2 V. Nowością jest limit anody: największy prąd, przy którym potencjał anody zostaje co najmniej piętnaście miliwoltów nad zerem. Nie pochodzi on z tablicy, tylko z modelu, więc sam maleje w zimnie, przy wysokim SOC i gdy bateria się starzeje.
 
 ### Slajd 11. Podgrzewanie w drodze skraca ładowanie ponad dwukrotnie
 
@@ -189,11 +189,11 @@ Plik `Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx`, 33 slajdów. Tekst każde
 
 ### Slajd 15. GS utrzymuje stałą pulsację odcięcia pętli chłodzenia
 
-**Paweł Fortuna:** Dziękuję. Zacznę od analizy regulatora chłodzenia, czyli serca wykładu. Wzmocnienie obiektu, ile ciepła odbiera chłodzenie na jednostkę sterowania, jest proporcjonalne do różnicy temperatur rho między powierzchnią a cieczą. Zlinearyzowaliśmy pętlę w 33 punktach pracy i policzyliśmy charakterystyki częstotliwościowe bez Control System Toolbox. Przy stałych nastawach pulsacja odcięcia spada razem z rho: przy 6 kelwinach PI ma 0,88 miliradiana na sekundę, czyli trzy razy mniej niż w punkcie projektowym. GS utrzymuje 2,61, tyle samo co przy 17 kelwinach. Zapas fazy wynosi około 90 stopni w całym zakresie.
+**Paweł Fortuna:** Dziękuję. Zacznę od analizy regulatora chłodzenia, czyli serca układu. Wzmocnienie obiektu, ile ciepła odbiera chłodzenie na jednostkę sterowania, jest proporcjonalne do różnicy temperatur rho między powierzchnią a cieczą. Zlinearyzowaliśmy pętlę w 33 punktach pracy i policzyliśmy charakterystyki częstotliwościowe bez Control System Toolbox. Przy stałych nastawach pulsacja odcięcia spada razem z rho: przy 6 kelwinach PI ma 0,88 miliradiana na sekundę, czyli trzy razy mniej niż w punkcie projektowym. GS utrzymuje 2,61, tyle samo co przy 17 kelwinach. Zapas fazy wynosi około 90 stopni w całym zakresie.
 
-### Slajd 16. Odpowiedź na zakłócenie i porównanie z wykładem
+### Slajd 16. Odpowiedź na zakłócenie i symulacja nieliniowa
 
-**Paweł Fortuna:** Ten sam efekt widać w dziedzinie czasu. Po lewej odpowiedź temperatury rdzenia na skok strat cieplnych o jeden kilowat. W chłodnym punkcie pracy, przy rho równym 5 kelwinów, PI pozwala na prawie dwa i pół kelwina przyrostu, a GS na około 1,3. Po prawej czas powrotu: dla PI rośnie do ponad dwóch godzin, dla GS zostaje około 80 minut. W tabeli wynik nieliniowy z sesji z wykładu. Przy 25 stopniach GS trzyma rdzeń o 0,58 kelwina chłodniej. W punkcie projektowym, przy 35 stopniach, różnica wynosi tylko 0,25 kelwina. Tak właśnie powinien zachowywać się harmonogram nastaw.
+**Paweł Fortuna:** Ten sam efekt widać w dziedzinie czasu. Po lewej odpowiedź temperatury rdzenia na skok strat cieplnych o jeden kilowat. W chłodnym punkcie pracy, przy rho równym 5 kelwinów, PI pozwala na prawie dwa i pół kelwina przyrostu, a GS na około 1,3. Po prawej czas powrotu: dla PI rośnie do ponad dwóch godzin, dla GS zostaje około 80 minut. W tabeli wynik symulacji nieliniowej. Przy 25 stopniach GS trzyma rdzeń o 0,58 kelwina chłodniej. W punkcie projektowym, przy 35 stopniach, różnica wynosi tylko 0,25 kelwina. Tak właśnie powinien zachowywać się harmonogram nastaw.
 
 ### Slajd 17. Estymator RLS śledzi parametry ogniwa
 
@@ -227,39 +227,23 @@ Plik `Prezentacja/BTMS_PROJEKT_FABIANEK_FORTUNA.pptx`, 33 slajdów. Tekst każde
 
 **Paweł Fortuna:** Model porównaliśmy z prawdziwymi danymi NASA dla ogniwa B0005. Dopasowujemy model potęgowy na siedemdziesięciu procentach cykli i prognozujemy pozostałe trzydzieści, tak jak przy identyfikacji. Model liniowy ma błąd testowy 32 mAh, pierwiastkowy 81 mAh. Ciekawe, że najlepiej dopasowany wykładnik 1,54 prognozuje najgorzej, z błędem 138 mAh, to klasyczne przeuczenie. Widać też skoki pojemności po przerwach w cyklowaniu. Prawdziwe ogniwo nie musi więc trzymać się założonego kształtu. Dlatego Monte Carlo obejmuje oba warianty, a pętla adaptacyjna reaguje na pomiar, a nie na model.
 
-### Slajd 25. Ten sam algorytm w Simulinku, wyniki zgodne ze skryptem
+### Slajd 25. Niezależny model blokowy potwierdza wyniki
 
-**Paweł Fortuna:** Ten sam algorytm zbudowaliśmy w Simulinku. Model powstaje automatycznie ze skryptu. Harmonogram GS to standardowy blok 1-D Lookup Table, stany przechowują bloki Unit Delay, a bloki MATLAB Function wołają dokładnie te same funkcje co skrypty. Dzięki temu porównanie jest jeden do jednego. Sesja przy zerze stopni trwa w obu narzędziach 1544 kroków, a maksymalna różnica temperatury rdzenia wynosi 5e-7 kelwina. Wynika ona tylko z interpolacji tablicy harmonogramu.
+**Paweł Fortuna:** Wyniki sprawdziliśmy drugą, niezależną implementacją w postaci modelu blokowego w Simulinku. Harmonogram nastaw jest w nim tablicą k od rho, a stany przechowują elementy opóźnienia. Sesja przy zerze stopni trwa w obu implementacjach 1544 kroków, a największa różnica temperatury rdzenia wynosi 5e-7 kelwina. Wynika ona wyłącznie z interpolacji tablicy harmonogramu. Wyniki nie zależą więc od sposobu implementacji algorytmu.
 
 ### Slajd 26. Ograniczenia modelu i sposób ich weryfikacji
 
-**Paweł Fortuna:** Krytyczna ocena. Współczynniki starzenia pochodzą z literatury, a nie z badań tego konkretnego ogniwa. Pakiet modelujemy jako jedno uśrednione ogniwo, bez rozrzutu parametrów. Litowanie opisujemy modelem progowym, a nie pełnym modelem elektrochemicznym. Klimat to sinusoida bez nasłonecznienia. Jak się przed tym bronimy? Mamy 12 testów poprawności, Monte Carlo z dwoma kształtami degradacji, dane NASA i przede wszystkim pętlę reagującą na zmierzone SOH. Liczby służą do porównania strategii, a wartości bezwzględne wymagają kalibracji na konkretnym ogniwie.
+**Paweł Fortuna:** Krytyczna ocena. Współczynniki starzenia pochodzą z literatury, a nie z badań tego konkretnego ogniwa. Pakiet modelujemy jako jedno uśrednione ogniwo, bez rozrzutu parametrów. Litowanie opisujemy modelem progowym, a nie pełnym modelem elektrochemicznym. Klimat to sinusoida bez nasłonecznienia. Jak się przed tym bronimy? Model przechodzi weryfikację numeryczną: bilans energii i ładunku, zbieżność względem kroku, ograniczenie napięcia i zbieżność obserwatora. Do tego Monte Carlo z dwoma kształtami degradacji, dane NASA i przede wszystkim pętla reagująca na zmierzone SOH. Liczby służą do porównania strategii, a wartości bezwzględne wymagają kalibracji na konkretnym ogniwie. Oddaję głos Karolowi.
 
-### Slajd 27. Sesja szybkiego ładowania w kilku liniach kodu
+### Slajd 27. Wnioski
 
-**Paweł Fortuna:** Projekt jest przygotowany pod laboratorium. Przykład: sesja szybkiego ładowania to kilka linii kodu. Student wczytuje parametry, wybiera strategię, ustawia temperaturę i uruchamia symulację. W Command Window widzi czas ładowania, minimalny potencjał anody i litowanie, te same liczby co na slajdach. Ciekawostka z tego ćwiczenia: po podgrzaniu przez cały czas aktywny jest limit bazowy trzystu amperów. Limit anody zaczyna działać dopiero wtedy, gdy student osłabi podgrzewanie w zadaniu pierwszym.
+**Karol Fabianek:** Podsumujmy w sześciu punktach. Po pierwsze, dominujący mechanizm starzenia zależy od klimatu: w gorącym jest to starzenie kalendarzowe, w zimnym litowanie anody. Po drugie, sposób ładowania ma większy wpływ niż samo chłodzenie: niższy docelowy SOC i ładowanie kończone przed wyjazdem podnoszą SOH w Madrycie o ponad sześć punktów procentowych. Po trzecie, temperatura szybkiego ładowania ma optimum, a podgrzanie skraca ładowanie zimą ponad dwukrotnie bez litowania. Po czwarte, gain scheduling utrzymuje stałą dynamikę pętli chłodzenia w całym zakresie pracy. Po piąte, sprzężenie od zmierzonego SOH czyni wynik odpornym na błędy modelu starzenia. Po szóste, w gorącym klimacie pętla osiąga nasycenie, więc wymaganie 80 procent jest spełnione, ale bez zapasu i kosztem energii chłodzenia.
 
-### Slajd 28. Pięć ćwiczeń: od modelu obiektu do pętli adaptacyjnej
-
-**Paweł Fortuna:** Przygotowaliśmy pięć ćwiczeń, każde na około godzinę zajęć. Pierwsze bada model obiektu i jego bieguny. Drugie porównuje PI z gain schedulingiem. Trzecie dotyczy parametrów ładowania i litowania anody. Czwarte to trwałość dziesięcioletnia i pętla adaptacyjna. Piąte to Simulink. Każde ćwiczenie to skrypt z sekcjami, opisem oczekiwanych wyników i zadaniami do sprawozdania. Wszystkie wydruki w instrukcji pochodzą z uruchomienia w MATLAB-ie R2026b.
-
-### Slajd 29. Model Simulink krok po kroku
-
-**Paweł Fortuna:** Ćwiczenie w Simulinku krok po kroku. Skrypt budujący tworzy model. Druga sekcja ćwiczenia przygotowuje w przestrzeni roboczej parametry pakietu, strategię i tablicę harmonogramu. Potem uruchamiamy model przyciskiem Run i oglądamy na Scope temperatury, SOC i napięcie gałęzi RC. Na końcu porównujemy wynik ze skryptem. Ciekawe zadanie: wpisanie samych jedynek do tablicy harmonogramu zamienia gain scheduling w zwykły regulator PI, więc student widzi różnicę na jednym modelu. Oddaję głos Karolowi.
-
-### Slajd 30. Wnioski
-
-**Karol Fabianek:** Podsumujmy w czterech punktach. Po pierwsze: najsilniejszym pokrętłem trwałości jest okno SOC i czas postoju, w Madrycie sama zmiana sposobu ładowania daje ponad sześć punktów procentowych. Po drugie: zimą baterię przed szybkim ładowaniem trzeba podgrzać, bo inaczej albo litujemy anodę, albo ładujemy dwa razy dłużej. Po trzecie: gain scheduling utrzymuje stałą dynamikę pętli chłodzenia w całym zakresie pracy. Po czwarte: adaptacja po zmierzonym SOH pozwala spełnić cel nawet w Dubaju i zmniejsza wrażliwość na błędy modelu starzenia.
-
-### Slajd 31. Każdy wynik można odtworzyć
-
-**Karol Fabianek:** Każdą liczbę z obu prezentacji można odtworzyć. Wystarczy pobrać repozytorium z GitHuba, otworzyć folder Projekt w MATLAB-ie i wpisać run_all. Wszystkie wyniki trafiają do plików CSV, a wykresy do folderu figures. Projekt nie wymaga dodatkowych toolboxów, a Simulink jest potrzebny tylko do modelu blokowego. Opis ćwiczeń i dokumentacja techniczna są w repozytorium.
-
-### Slajd 32. Bibliografia
+### Slajd 28. Bibliografia
 
 **Karol Fabianek:** Na slajdzie jest literatura, na której oparliśmy model i metody. Najważniejsze pozycje to model starzenia Schmalstiega, badania temperaturowe Waldmanna, model anody Doyle'a, a od strony sterowania prace Rugha i Shammy o gain schedulingu oraz podręcznik Åströma i Wittenmarka.
 
-### Slajd 33. Dziękujemy za uwagę
+### Slajd 29. Dziękujemy za uwagę
 
 **Karol Fabianek:** Dziękujemy za uwagę. Chętnie odpowiemy na pytania.
 

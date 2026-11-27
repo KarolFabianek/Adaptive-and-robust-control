@@ -133,7 +133,7 @@ nexttile; hold on
 plot(L35.GS_SAFE.t/60, L35.GS_SAFE.I, 'Color', S.navy);
 plot(L35.LIFE.t/60, L35.LIFE.I, 'Color', S.blue);
 xlabel('Czas [min]'); ylabel('Prąd pakietu [A]'); ylim([0 320]);
-legend('CC, PI, GS, GS-SAFE (profil SOC z wykładu)', 'LIFE (bez profilu SOC)', 'Location', 'southwest');
+legend('CC, PI, GS, GS-SAFE (profil SOC)', 'LIFE (bez profilu SOC)', 'Location', 'southwest');
 title('Prąd ładowania, otoczenie 35°C');
 save_fig(fig, 'e03_lecture_session_35C');
 
