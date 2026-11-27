@@ -6,7 +6,7 @@ Cel: co najmniej 80% pojemności baterii po 10 latach eksploatacji.
 
 Karol Fabianek, Paweł Fortuna, Sterowanie adaptacyjne i odporne, Politechnika Opolska, WEAiI
 
-Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, wygenerowanych w MATLAB R2026b z Simulinkiem. Odtworzysz je poleceniem `run_all`. Ćwiczenia laboratoryjne opisuje [LABORATORIUM.md](../../LABORATORIUM.md), a tekst wystąpień plik [SKRYPT_PROJEKT.md](../../Prezentacja/SKRYPT_PROJEKT.md) i [SKRYPT_WYKLAD.md](../../Prezentacja/SKRYPT_WYKLAD.md).
+Wszystkie liczby w tym dokumencie pochodzą z plików `Projekt/results/*.csv`, wygenerowanych w MATLAB R2026b z Simulinkiem. Odtworzysz je poleceniem `run_all`. Ćwiczenia laboratoryjne opisuje [LABORATORIUM.md](../../LABORATORIUM.md), a tekst wykładu plik [SKRYPT_WYKLADU.md](../../Prezentacja/SKRYPT_WYKLADU.md).
 
 ---
 
