@@ -25,6 +25,9 @@ new_system(model);
 set_param(model, 'Solver', 'FixedStepDiscrete', 'FixedStep', 'simp.dt', ...
     'StopTime', 'simp.t_stop', 'SaveOutput', 'off', 'SaveTime', 'off', ...
     'SignalLogging', 'off', 'ReturnWorkspaceOutputs', 'on');
+% Przy uruchomieniu przyciskiem Run model sam tworzy brakujące zmienne
+set_param(model, 'InitFcn', sprintf(['if ~(exist(''P'', ''var'') && exist(''cfg'', ''var'') && exist(''simp'', ''var''))\n' ...
+    '    addpath(fileparts(get_param(bdroot, ''FileName'')));\n    btms_sim_params(0);\nend']));
 
 %% Bloki źródłowe
 add_block('simulink/Sources/Constant', [model '/Ta'], 'Value', 'simp.Ta', 'Position', [30 330 90 360]);

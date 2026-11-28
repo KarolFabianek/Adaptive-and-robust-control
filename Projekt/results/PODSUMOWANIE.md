@@ -1,4 +1,4 @@
-# Podsumowanie wyników (wygenerowane przez run_all.m, 2026-11-27 10:06, MATLAB R2026b)
+# Podsumowanie wyników (wygenerowane przez run_all.m, 2026-11-28 11:57, MATLAB R2026b)
 
 Testy poprawności: wszystkie zaliczone
 
